@@ -46,6 +46,8 @@ BACKENDS = {
 }
 
 
+MAX_RETRIES = int(os.getenv("DREX_MAX_RETRIES", "4"))
+
 # One shared connection so we don't pay the TLS handshake on every call.
 _session = requests.Session()
 
@@ -109,13 +111,22 @@ def decide(facts, question: str, options: list, option_descriptions: dict = None
         "error": None,
     }
 
-    start = time.perf_counter()
-    try:
-        data = _call_drex(facts, question, options, option_descriptions, backend)
-    except Exception as error:
-        result["latency_s"] = time.perf_counter() - start
-        result["error"] = f"{type(error).__name__}: {error}"
-        return result
+    # Shared servers sometimes answer 429 "Model busy". Wait and retry, like llm_client.
+    # Only the successful attempt's time counts as latency.
+    for attempt in range(MAX_RETRIES + 1):
+        start = time.perf_counter()
+        try:
+            data = _call_drex(facts, question, options, option_descriptions, backend)
+            result["error"] = None
+            break
+        except Exception as error:
+            result["latency_s"] = time.perf_counter() - start
+            result["error"] = f"{type(error).__name__}: {error}"
+            retryable = any(code in result["error"] for code in ("HTTP 429", "HTTP 5", "Timeout"))
+            if not retryable or attempt == MAX_RETRIES:
+                return result
+            time.sleep(1 + 2 * attempt)
+    result["retries"] = attempt
     result["latency_s"] = time.perf_counter() - start
 
     answer = data.get("answers", {}).get("decision", {})
