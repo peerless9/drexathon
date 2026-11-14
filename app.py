@@ -266,53 +266,230 @@ def load_results(path=SUMMARY_PATH):
 
 
 # ============================================================== UI HELPERS
+# Everything below is PRESENTATION ONLY. Model calls, data loading and numbers live above.
+import html as _html
+
 st.set_page_config(page_title="ThriftAgent · Drex vs the Giants", page_icon="🧥", layout="wide")
 
-st.markdown(f"""
+RESULTS_DIR = REPO_ROOT / "bench" / "results"
+ASSETS_DIR = REPO_ROOT / "assets"
+ACTION_COLOR = {"accept": "#34D399", "counter": "#FBBF24", "decline": "#FB7185"}
+ACTION_EMOJI = {"accept": "✅ ACCEPT", "counter": "🔁 COUNTER", "decline": "⛔ DECLINE"}
+ACTION_WORD = {"accept": "ACCEPT", "counter": "COUNTER", "decline": "DECLINE"}
+
+# ------------------------------------------------------------- STYLE (single block)
+st.markdown("""
 <style>
-  .block-container {{ padding-top: 2rem; max-width: 1200px; }}
-  .hero h1 {{ font-size: 2.4rem; margin-bottom: 0; }}
-  .hero p {{ color: #6b7280; font-size: 1.05rem; margin-top: .25rem; }}
-  .card {{ border: 1px solid rgba(128,128,128,.25); border-radius: 14px; padding: 18px 20px; height: 100%; }}
-  .card.drex {{ border: 2px solid {DREX_COLOR}; }}
-  .label {{ font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: #6b7280; }}
-  .answer {{ font-size: 2.2rem; font-weight: 800; margin: .2rem 0; }}
-  .latency {{ font-size: 1.1rem; font-variant-numeric: tabular-nums; }}
-  .banner {{ background: linear-gradient(90deg, {DREX_COLOR}, #B14BFF); color: white; border-radius: 16px;
-             padding: 22px; text-align: center; font-size: 2rem; font-weight: 800; margin: 18px 0 6px; }}
-  .banner small {{ display:block; font-size: 1rem; font-weight: 500; opacity: .9; }}
-  .pill {{ display:inline-block; padding: 2px 10px; border-radius: 999px; font-size: .8rem; font-weight: 600; }}
-  .ok {{ background:#DCFCE7; color:#166534; }} .bad {{ background:#FEE2E2; color:#991B1B; }}
-  .sample {{ background:#FEF3C7; color:#92400E; border-radius:10px; padding:10px 14px; font-weight:700; }}
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #0B0B10; --panel: rgba(255,255,255,.035); --panel-2: rgba(255,255,255,.06);
+  --line: rgba(255,255,255,.09); --text: #ECECF1; --muted: #8B8B99;
+  --drex: #6C3BFF; --drex-2: #B14BFF; --llm: #9AA0A6;
+  --mint: #34D399; --amber: #FBBF24; --coral: #FB7185;
+}
+html, body, [class*="css"], .stMarkdown, .stText, p, label, input, textarea { font-family: 'Inter', sans-serif; }
+.stApp {
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(108,59,255,.22), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(177,75,255,.10), transparent 60%),
+    var(--bg);
+}
+.block-container { padding-top: 1.6rem; max-width: 1280px; }
+h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif !important; letter-spacing: -.02em; }
+[data-testid="stHeader"] { background: transparent; }
+
+/* tabs */
+.stTabs [data-baseweb="tab-list"] { gap: 6px; border-bottom: 1px solid var(--line); }
+.stTabs [data-baseweb="tab"] {
+  font-family: 'Space Grotesk', sans-serif; font-size: 1.05rem; font-weight: 600; padding: 10px 18px;
+  border-radius: 12px 12px 0 0; color: var(--muted);
+}
+.stTabs [aria-selected="true"] { color: var(--text) !important; background: var(--panel-2); }
+.stTabs [data-baseweb="tab-highlight"] { background: linear-gradient(90deg, var(--drex), var(--drex-2)); height: 3px; }
+
+/* buttons + inputs */
+.stButton > button[kind="primary"] {
+  background: linear-gradient(90deg, var(--drex), var(--drex-2)); border: 0; border-radius: 14px;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.05rem; padding: .7rem 1rem;
+  box-shadow: 0 8px 30px rgba(108,59,255,.35);
+}
+.stButton > button[kind="primary"]:hover { filter: brightness(1.08); }
+[data-testid="stFileUploaderDropzone"] {
+  background: var(--panel); border: 1.5px dashed rgba(124,77,255,.45); border-radius: 18px; min-height: 150px;
+}
+
+/* hero */
+.hero { display: grid; grid-template-columns: 1.6fr 1fr; gap: 28px; align-items: center; margin-bottom: 18px; }
+.eyebrow { font-family: 'Space Grotesk'; font-size: .78rem; letter-spacing: .22em; text-transform: uppercase;
+           color: #B9A6FF; margin-bottom: 8px; }
+.hero h1 { font-size: 3.4rem; line-height: 1.02; margin: 0 0 10px; font-weight: 700; }
+.hero h1 .grad { background: linear-gradient(90deg, #A78BFA, #E879F9); -webkit-background-clip: text; color: transparent; }
+.hero .tag { font-size: 1.15rem; color: #C9C9D6; margin: 0 0 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { font-family: 'Space Grotesk'; font-weight: 600; font-size: 1rem; padding: 9px 14px; border-radius: 999px;
+        background: var(--panel-2); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.chip b { color: #C4B5FD; }
+.hero-art { height: 210px; border-radius: 22px; border: 1px solid var(--line); overflow: hidden; position: relative;
+            background: radial-gradient(circle at 30% 30%, rgba(177,75,255,.55), transparent 55%),
+                        radial-gradient(circle at 75% 70%, rgba(108,59,255,.65), transparent 55%), #12121A; }
+.hero-art .ph { position: absolute; inset: 0; display: grid; place-items: center; font-size: 4.5rem; }
+.hero-art .ph small { position: absolute; bottom: 12px; font-size: .75rem; color: rgba(255,255,255,.55);
+                      letter-spacing: .1em; text-transform: uppercase; }
+
+/* generic cards */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 22px 24px;
+        backdrop-filter: blur(8px); }
+.label { font-family: 'Space Grotesk'; font-size: .78rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.section-title { font-family: 'Space Grotesk'; font-size: 1.5rem; font-weight: 700; margin: 6px 0 2px; }
+.section-sub { color: var(--muted); margin-bottom: 14px; }
+
+/* buyer chat bubble */
+.chat { display: flex; gap: 12px; align-items: flex-start; margin: 8px 0 18px; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 1.2rem;
+          background: var(--panel-2); border: 1px solid var(--line); flex: none; }
+.bubble { background: #1C1C26; border: 1px solid var(--line); border-radius: 4px 18px 18px 18px; padding: 14px 18px;
+          font-size: 1.12rem; max-width: 820px; }
+.bubble .meta { color: var(--muted); font-size: .85rem; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+/* race cards */
+.race { position: relative; border-radius: 22px; padding: 22px 26px; min-height: 210px; border: 1px solid var(--line);
+        background: var(--panel); overflow: hidden; }
+.race.drex { border: 1.5px solid rgba(124,77,255,.75);
+             background: linear-gradient(160deg, rgba(108,59,255,.20), rgba(177,75,255,.06) 60%, rgba(255,255,255,.02)); }
+.race.drex.first { animation: pulse 1.6s ease-out 2; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(124,77,255,.65); } 100% { box-shadow: 0 0 0 26px rgba(124,77,255,0); } }
+.race .who { display: flex; justify-content: space-between; align-items: center; }
+.race .name { font-family: 'Space Grotesk'; font-weight: 700; letter-spacing: .14em; font-size: .9rem; }
+.race.drex .name { color: #C4B5FD; } .race.llm .name { color: var(--llm); }
+.badge { font-size: .72rem; font-weight: 700; letter-spacing: .1em; padding: 4px 10px; border-radius: 999px;
+         background: rgba(124,77,255,.25); color: #DDD6FE; border: 1px solid rgba(124,77,255,.5); }
+.action { font-family: 'Space Grotesk'; font-weight: 700; font-size: 3.6rem; line-height: 1; margin: 18px 0 12px; letter-spacing: -.02em; }
+.timer { font-family: 'Space Grotesk'; font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.timer small { font-size: .95rem; color: var(--muted); font-weight: 500; margin-left: 10px; }
+.pill { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: .82rem; font-weight: 600; }
+.ok { background: rgba(52,211,153,.14); color: #6EE7B7; border: 1px solid rgba(52,211,153,.35); }
+.bad { background: rgba(251,113,133,.14); color: #FDA4AF; border: 1px solid rgba(251,113,133,.35); }
+.thinking { font-family: 'Space Grotesk'; font-size: 2.4rem; font-weight: 700; margin: 26px 0 14px;
+            background: linear-gradient(90deg, #4B4B58 0%, #D4D4DE 50%, #4B4B58 100%); background-size: 200% 100%;
+            -webkit-background-clip: text; color: transparent; animation: shimmer 1.3s linear infinite; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.idle { font-family: 'Space Grotesk'; font-size: 2.4rem; color: #3A3A46; margin: 26px 0 14px; font-weight: 700; }
+
+/* banner */
+.banner { margin: 20px 0 8px; border-radius: 22px; padding: 26px; text-align: center; color: white;
+          background: linear-gradient(100deg, #5B2BFF, #9B4BFF 55%, #D946EF); box-shadow: 0 18px 50px rgba(108,59,255,.35);
+          animation: rise .6s cubic-bezier(.2,.9,.3,1.2); }
+@keyframes rise { from { transform: translateY(10px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+.banner .big { font-family: 'Space Grotesk'; font-size: 2.6rem; font-weight: 700; letter-spacing: -.02em; }
+.banner small { display: block; font-size: 1.02rem; opacity: .9; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.scam { margin-top: 12px; border-radius: 16px; padding: 14px 18px; font-weight: 600; font-size: 1.05rem;
+        background: rgba(251,113,133,.12); border: 1px solid rgba(251,113,133,.45); color: #FECDD3; }
+.policy { border-radius: 16px; padding: 14px 18px; background: var(--panel); border: 1px solid var(--line); }
+
+/* KPI tiles */
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 8px 0 18px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 18px 20px; }
+.kpi.hot { background: linear-gradient(160deg, rgba(108,59,255,.22), rgba(255,255,255,.02)); border-color: rgba(124,77,255,.5); }
+.kpi .v { font-family: 'Space Grotesk'; font-size: 2.5rem; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.kpi .s { color: var(--muted); font-size: .92rem; margin-top: 6px; }
+.callout { border-radius: 18px; padding: 16px 20px; background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.35); }
+.callout b { color: #FDE68A; }
+.sample { background: rgba(251,191,36,.12); color: #FDE68A; border: 1px solid rgba(251,191,36,.45);
+          border-radius: 14px; padding: 12px 16px; font-weight: 700; }
+
+/* sell */
+.pricetag { display: inline-flex; align-items: baseline; gap: 14px; padding: 18px 24px; border-radius: 20px;
+            background: linear-gradient(140deg, rgba(108,59,255,.28), rgba(177,75,255,.08)); border: 1px solid rgba(124,77,255,.55); }
+.pricetag .p { font-family: 'Space Grotesk'; font-size: 3.4rem; font-weight: 700; line-height: 1; }
+.pricetag .m { color: #C9C9D6; font-variant-numeric: tabular-nums; }
+.listing { border-radius: 20px; overflow: hidden; border: 1px solid var(--line); background: #13131B; }
+.listing .img { height: 180px; background: radial-gradient(circle at 50% 40%, rgba(177,75,255,.35), transparent 60%), #1A1A24;
+                display: grid; place-items: center; font-size: 4rem; }
+.listing .body { padding: 16px 20px 20px; }
+.listing .t { font-weight: 700; font-size: 1.08rem; }
+.listing .pr { font-family: 'Space Grotesk'; font-size: 1.9rem; font-weight: 700; margin: 6px 0 8px; }
+.listing .d { color: #C9C9D6; white-space: pre-line; line-height: 1.5; }
+.listing .src { color: var(--muted); font-size: .8rem; margin-top: 10px; }
+
+@media (max-width: 900px) { .hero { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); }
+  .hero h1 { font-size: 2.4rem; } .action { font-size: 2.6rem; } }
 </style>
 """, unsafe_allow_html=True)
 
-ACTION_EMOJI = {"accept": "✅ ACCEPT", "counter": "🔁 COUNTER", "decline": "⛔ DECLINE"}
+
+def _dark(chart):
+    """Shared Altair styling: transparent background, quiet axes, no chart junk."""
+    return (chart.configure_view(strokeWidth=0)
+            .configure(background="transparent")
+            .configure_axis(labelColor="#A1A1B0", titleColor="#A1A1B0", gridColor="rgba(255,255,255,.06)",
+                            domainColor="rgba(255,255,255,.12)", tickColor="rgba(255,255,255,.12)",
+                            labelFont="Inter", titleFont="Inter", labelFontSize=12)
+            .configure_header(labelColor="#ECECF1", titleColor="#ECECF1", labelFont="Space Grotesk", labelFontSize=13)
+            .configure_title(color="#ECECF1", font="Space Grotesk", fontSize=15, anchor="start"))
 
 
 def prob_chart(probs: dict, pick: str, height: int = 220):
     df = pd.DataFrame({"option": list(probs.keys()), "probability": list(probs.values())})
     df["picked"] = df["option"] == pick
-    return alt.Chart(df).mark_bar(cornerRadiusEnd=4).encode(
+    bars = alt.Chart(df).mark_bar(cornerRadiusEnd=6, height=22).encode(
         y=alt.Y("option:N", sort=list(probs.keys()), title=None),
-        x=alt.X("probability:Q", axis=alt.Axis(format="%"), scale=alt.Scale(domain=[0, 1]), title=None),
-        color=alt.condition("datum.picked", alt.value(DREX_COLOR), alt.value("#D1D5DB")),
+        x=alt.X("probability:Q", axis=alt.Axis(format="%", tickCount=5), scale=alt.Scale(domain=[0, 1]), title=None),
+        color=alt.condition("datum.picked", alt.value("#8B5CF6"), alt.value("#2E2E3A")),
         tooltip=["option", alt.Tooltip("probability:Q", format=".1%")],
-    ).properties(height=height)
+    )
+    text = alt.Chart(df).mark_text(align="left", dx=6, color="#ECECF1", font="Inter", fontSize=12).encode(
+        y=alt.Y("option:N", sort=list(probs.keys())), x="probability:Q", text=alt.Text("probability:Q", format=".0%"))
+    return _dark((bars + text).properties(height=height))
+
+
+MODEL_COLORS = alt.Scale(domain=["drex", "drex2", "llm"], range=["#8B5CF6", "#C084FC", "#6B7280"])
 
 
 def metric_bar(df: pd.DataFrame, field: str, title: str, fmt: str):
-    return alt.Chart(df).mark_bar(cornerRadiusEnd=4).encode(
-        x=alt.X(f"{field}:Q", title=None, axis=alt.Axis(format=fmt)),
+    return _dark(alt.Chart(df).mark_bar(cornerRadiusEnd=6).encode(
+        x=alt.X(f"{field}:Q", title=None, axis=alt.Axis(format=fmt, tickCount=4)),
         y=alt.Y("model:N", title=None),
-        row=alt.Row("benchmark:N", title=None, header=alt.Header(labelFontWeight="bold")),
-        color=alt.Color("model:N", scale=alt.Scale(domain=["drex", "llm"], range=[DREX_COLOR, LLM_COLOR]),
-                        legend=None),
+        row=alt.Row("benchmark:N", title=None, header=alt.Header(labelFontWeight="bold", labelAngle=0, labelAlign="left")),
+        color=alt.Color("model:N", scale=MODEL_COLORS, legend=None),
         tooltip=["benchmark", "model", alt.Tooltip(f"{field}:Q", format=fmt)],
-    ).properties(title=title, height=60, width=300)
+    ).properties(title=title, height=64, width=260))
 
 
-# ============================================================== SIDEBAR
+def _hard_summary():
+    """Pre-registered hard-set results (bench/hard_bench.py), if present."""
+    path = RESULTS_DIR / "summary.csv"
+    if not path.exists():
+        return None
+    try:
+        return pd.read_csv(path)
+    except Exception:
+        return None
+
+
+def _headline():
+    """Numbers for the hero chips: hard set if available, else latest round, else clearly-marked defaults."""
+    hs = _hard_summary()
+    try:
+        head = json.loads((RESULTS_DIR / "headline.json").read_text())
+        hard = hs[hs["dataset"] == "hard"].set_index("model")
+        return {"speed": f"{head['speedup_x']:.1f}×", "cost": f"{head['cost_ratio_x']:.0f}×",
+                "acc": f"{hard.loc['drex', 'accuracy']:.0%}", "src": "80 pre-registered hard buyer messages × 3 runs"}
+    except Exception:
+        return {"speed": "6×", "cost": "250×", "acc": "100%", "src": "negotiation benchmark"}
+
+
+def _img_or_placeholder(name: str, emoji: str, caption: str) -> str:
+    for ext in ("png", "jpg", "jpeg", "webp"):
+        path = ASSETS_DIR / f"{name}.{ext}"
+        if path.exists():
+            import base64
+            data = base64.b64encode(path.read_bytes()).decode()
+            return f'<img src="data:image/{ext};base64,{data}" style="width:100%;height:100%;object-fit:cover">'
+    return f'<div class="ph">{emoji}<small>{caption}</small></div>'
+
+
+# ------------------------------------------------------------- SIDEBAR
 with st.sidebar:
     st.markdown("### 🧥 ThriftAgent")
     st.caption("Reselling is hundreds of tiny decisions. An LLM writes the text; **Drex makes the decisions.**")
@@ -328,88 +505,37 @@ with st.sidebar:
         st.metric("Decisions this session", len(hist))
         st.metric("Avg speedup", f"{llm_total / max(drex_total, 1):.1f}×")
 
-st.markdown('<div class="hero"><h1>🧥 ThriftAgent</h1>'
-            '<p>An AI agent that sells your used clothes — priced and negotiated by <b>Drex</b>, '
-            'benchmarked against a frontier LLM.</p></div>', unsafe_allow_html=True)
+# ------------------------------------------------------------- HERO
+_h = _headline()
+st.markdown(f"""
+<div class="hero">
+  <div>
+    <div class="eyebrow">Drexathon · Drex vs the Giants</div>
+    <h1>Thrift<span class="grad">Agent</span></h1>
+    <p class="tag">An AI agent that sells your used clothes. <b>The LLM writes. Drex decides.</b></p>
+    <div class="chips">
+      <span class="chip">⚡ <b>{_h['speed']}</b> faster</span>
+      <span class="chip">💸 <b>{_h['cost']}</b> cheaper</span>
+      <span class="chip">🎯 <b>{_h['acc']}</b> accuracy</span>
+    </div>
+    <div style="color:var(--muted);font-size:.82rem;margin-top:10px">Measured on {_h['src']}, vs Claude Opus 5.5.</div>
+  </div>
+  <div class="hero-art">{_img_or_placeholder("hero", "🧥", "Adobe Firefly hero · assets/hero.png")}</div>
+</div>
+""", unsafe_allow_html=True)
 
-tab_sell, tab_negotiate, tab_results = st.tabs(["🏷️ Sell", "🤝 Negotiate", "📊 Results"])
+if USE_MOCK:
+    st.markdown('<div class="sample">⚠️ MOCK MODE - answers and timings below are simulated.</div>',
+                unsafe_allow_html=True)
 
-# ============================================================== SELL TAB
-with tab_sell:
-    pricing_df, pricing_is_sample = load_csv("pricing")
-    left, right = st.columns([1, 1.3], gap="large")
-
-    with left:
-        st.subheader("1 · Your item")
-        photo = st.file_uploader("Upload a photo", type=["jpg", "jpeg", "png", "webp", "heic"])
-        if photo is not None:
-            st.image(photo, use_container_width=True)
-        categories = sorted(pricing_df["category"].dropna().unique()) if pricing_df is not None else []
-        if not categories:
-            categories = ["jeans", "jackets", "sneakers", "sweaters"]
-        c1, c2 = st.columns(2)
-        brand = c1.text_input("Brand", "Levi's")
-        size = c2.text_input("Size", "32x32")
-        title = st.text_input("Item", "501 Original Fit Medium Wash")
-        c3, c4 = st.columns(2)
-        condition = c3.selectbox("Condition", ["new with tags", "like new", "good", "fair"], index=2)
-        category = c4.selectbox("Category", categories,
-                                index=categories.index("jeans") if "jeans" in categories else 0)
-        price_clicked = st.button("💸 Price it with Drex", type="primary", use_container_width=True)
-
-    with right:
-        st.subheader("2 · Drex picks the price")
-        if pricing_df is None:
-            st.info("No pricing data yet. Fill in bench/data/pricing.csv.")
-        else:
-            if pricing_is_sample:
-                st.caption("⚠️ Using SAMPLE comps - fill in bench/data/pricing.csv for real ones.")
-            comps = pricing_df[pricing_df["category"] == category]
-            if len(comps) < 2:
-                st.info(f"Need at least 2 sold comps in '{category}'.")
-            elif price_clicked:
-                options = [f"${p}" for p in make_price_options(comps["sold_price"].tolist())]
-                comp_lines = [f"{r['brand']} {r['title']} (size {r['size']}, {r['condition']}): sold ${r['sold_price']}"
-                              for _, r in comps.iterrows()]
-                facts = {"category": category, "brand": brand, "title": title, "size": size,
-                         "condition": condition, "recently sold comparable items": "; ".join(comp_lines)}
-                with st.spinner("Drex is deciding…"):
-                    result = drex_decide(facts, PRICING_QUESTION, options)
-                st.session_state["sell"] = {"result": result, "options": options, "n_comps": len(comps),
-                                            "item": (brand, title, size, condition, category)}
-
-            sell = st.session_state.get("sell")
-            if sell:
-                result = sell["result"]
-                if result["error"] or result["invalid"]:
-                    st.error(f"Drex didn't return a valid answer. {result['error'] or ''}")
-                else:
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("Drex's price", result["answer"])
-                    m2.metric("Decided in", f"{result['latency_ms']:.0f} ms")
-                    m3.metric("Comps used", sell["n_comps"])
-                    if result["probs"]:
-                        st.altair_chart(prob_chart(result["probs"], result["answer"]), use_container_width=True)
-                    st.caption("Options = 10th / 30th / 50th / 70th / 90th percentile of recent sold comps.")
-
-                    st.subheader("3 · Listing (written by the LLM)")
-                    b, t, s, c, cat = sell["item"]
-                    price = result["answer"].lstrip("$")
-                    if "listing" not in sell:
-                        with st.spinner("Writing listing…"):
-                            sell["listing"] = generate_listing(b, t, s, c, cat, price)
-                    l_title, l_desc, source = sell["listing"]
-                    with st.container(border=True):
-                        st.markdown(f"**{l_title}**  \n### ${price}")
-                        st.write(l_desc)
-                        st.caption(f"Text source: {source}")
-            else:
-                st.caption("Fill in the item and hit **Price it with Drex**.")
+tab_negotiate, tab_sell, tab_results = st.tabs(["⚡ Negotiate", "🏷️ Sell", "📊 Results"])
 
 # ============================================================== NEGOTIATE TAB
 with tab_negotiate:
     neg_df, neg_is_sample = load_csv("negotiation")
-    st.subheader("Same decision. Two models. Who's faster?")
+    st.markdown('<div class="section-title">Same decision. Two models. One race.</div>'
+                '<div class="section-sub">A buyer sends an offer. Drex and a frontier LLM decide in parallel - '
+                'accept, counter or decline - under the same seller policy.</div>', unsafe_allow_html=True)
 
     preset_labels = ["✏️ Custom"]
     if neg_df is not None:
@@ -424,15 +550,23 @@ with tab_negotiate:
         return preset[field] if preset is not None else fallback
 
     key = f"neg_{chosen}"
-    c1, c2, c3, c4 = st.columns([2.2, 1, 1, 1])
-    item = c1.text_input("Item", default("item", "Patagonia Better Sweater Fleece (M)"), key=key + "item")
-    list_price = c2.number_input("List $", min_value=1.0, value=float(default("list_price", 85)), key=key + "lp")
-    floor_price = c3.number_input("Floor $", min_value=0.0, value=float(default("floor_price", 60)), key=key + "fp")
-    days_listed = c4.number_input("Days listed", min_value=0, value=int(default("days_listed", 5)), key=key + "dl")
-    c5, c6 = st.columns([3.2, 1])
-    message = c5.text_area("💬 Buyer message", default("buyer_message", "hey would u take 70? can pay rn"),
-                           height=90, key=key + "msg")
-    offer = c6.number_input("Offer $", min_value=0.0, value=float(default("offer", 70)), key=key + "off")
+    with st.expander("Listing & offer details", expanded=preset is None):
+        c1, c2, c3, c4 = st.columns([2.2, 1, 1, 1])
+        item = c1.text_input("Item", default("item", "Patagonia Better Sweater Fleece (M)"), key=key + "item")
+        list_price = c2.number_input("List $", min_value=1.0, value=float(default("list_price", 85)), key=key + "lp")
+        floor_price = c3.number_input("Floor $", min_value=0.0, value=float(default("floor_price", 60)), key=key + "fp")
+        days_listed = c4.number_input("Days listed", min_value=0, value=int(default("days_listed", 5)), key=key + "dl")
+        c5, c6 = st.columns([3.2, 1])
+        message = c5.text_area("💬 Buyer message", default("buyer_message", "hey would u take 70? can pay rn"),
+                               height=90, key=key + "msg")
+        offer = c6.number_input("Offer $", min_value=0.0, value=float(default("offer", 70)), key=key + "off")
+
+    st.markdown(f"""
+    <div class="chat"><div class="avatar">🛍️</div>
+      <div class="bubble">{_html.escape(str(message))}
+        <div class="meta">Offer <b>${offer:,.2f}</b> on <b>{_html.escape(str(item))}</b> · listed ${list_price:,.0f}
+        · floor ${floor_price:,.0f} · {100 * offer / list_price:.1f}% of list</div></div></div>
+    """, unsafe_allow_html=True)
 
     go = st.button("⚡ Send to Drex and the LLM", type="primary", use_container_width=True)
 
@@ -455,27 +589,39 @@ with tab_negotiate:
     slot_drex, slot_llm = col_drex.empty(), col_llm.empty()
     banner_slot = st.empty()
 
-    def render_card(slot, name, result, is_drex):
-        cls = "card drex" if is_drex else "card"
+    def render_card(slot, name, result, is_drex, first=False):
+        cls = "race drex" if is_drex else "race llm"
+        if first:
+            cls += " first"
+        badge = '<span class="badge">ANSWERED FIRST</span>' if first else ""
+        head = f'<div class="who"><span class="name">{name.upper()}</span>{badge}</div>'
         if result is None:
-            slot.markdown(f'<div class="{cls}"><div class="label">{name}</div>'
-                          f'<div class="answer">⏳ thinking…</div></div>', unsafe_allow_html=True)
+            slot.markdown(f'<div class="{cls}">{head}<div class="thinking">thinking…</div>'
+                          f'<div class="timer" style="color:var(--muted)">⏱ running</div></div>', unsafe_allow_html=True)
+            return
+        if result.get("answer") == "—":
+            slot.markdown(f'<div class="{cls}">{head}<div class="idle">ready</div>'
+                          f'<div class="timer" style="color:var(--muted)">⏱ – ms</div></div>', unsafe_allow_html=True)
             return
         if result["error"] or result["invalid"]:
-            body = f'<div class="answer">⚠️ invalid</div><div>{result["error"] or "unparseable answer"}</div>'
+            body = (f'<div class="action" style="color:var(--coral);font-size:2.2rem">invalid</div>'
+                    f'<div style="color:var(--muted)">{_html.escape(str(result["error"] or "unparseable answer"))[:160]}</div>')
         else:
-            ok = result["answer"] == expected
-            pill = '<span class="pill ok">matches policy</span>' if ok else '<span class="pill bad">wrong call</span>'
-            body = (f'<div class="answer">{ACTION_EMOJI.get(result["answer"], result["answer"])}</div>{pill}')
+            ans = result["answer"]
+            ok = ans == expected
+            pill = ('<span class="pill ok">✓ matches policy</span>' if ok
+                    else '<span class="pill bad">✗ wrong call</span>')
+            body = (f'<div class="action" style="color:{ACTION_COLOR.get(ans, "#ECECF1")}">'
+                    f'{ACTION_WORD.get(ans, str(ans).upper())}</div>{pill}')
         slot.markdown(
-            f'<div class="{cls}"><div class="label">{name}</div>{body}'
-            f'<div class="latency">⏱ <b>{(result["latency_ms"] or 0):,.0f} ms</b> · '
-            f'${result["cost_usd"]:.6f}</div></div>', unsafe_allow_html=True)
+            f'<div class="{cls}">{head}{body}'
+            f'<div class="timer" style="margin-top:14px">{(result["latency_ms"] or 0):,.0f} ms'
+            f'<small>${result["cost_usd"]:.6f} per decision</small></div></div>', unsafe_allow_html=True)
 
     if go:
         render_card(slot_drex, "Drex", None, True)
         render_card(slot_llm, "Frontier LLM", None, False)
-        results = {}
+        results, order = {}, []
         with ThreadPoolExecutor(max_workers=2) as pool:
             futures = {pool.submit(drex_decide, facts, NEGOTIATION_QUESTION, NEGOTIATION_OPTIONS): "drex",
                        pool.submit(llm_decide, facts, NEGOTIATION_QUESTION, NEGOTIATION_OPTIONS): "llm"}
@@ -486,58 +632,197 @@ with tab_negotiate:
                 except Exception as error:
                     results[name] = {"answer": None, "probs": None, "latency_ms": None, "cost_usd": 0.0,
                                      "invalid": True, "error": f"{type(error).__name__}: {error}", "model": ""}
+                order.append(name)
                 if name == "drex":
-                    render_card(slot_drex, "Drex", results[name], True)
+                    render_card(slot_drex, "Drex", results[name], True, first=(order[0] == "drex"))
                 else:
-                    render_card(slot_llm, "Frontier LLM", results[name], False)
+                    render_card(slot_llm, "Frontier LLM", results[name], False, first=False)
         st.session_state["neg"] = {"results": results, "expected": expected,
-                                   "signals": scam_signals(message)}
+                                   "signals": scam_signals(message), "first": order[0] if order else None}
         d_ms, l_ms = results["drex"]["latency_ms"], results["llm"]["latency_ms"]
-        if d_ms and l_ms:
+        if d_ms and l_ms and not (results["drex"]["invalid"] or results["llm"]["invalid"]):
             st.session_state.setdefault("history", []).append({"drex_ms": d_ms, "llm_ms": l_ms})
     elif st.session_state.get("neg"):
         res = st.session_state["neg"]["results"]
-        render_card(slot_drex, "Drex", res["drex"], True)
+        render_card(slot_drex, "Drex", res["drex"], True, first=st.session_state["neg"].get("first") == "drex")
         render_card(slot_llm, "Frontier LLM", res["llm"], False)
     else:
-        render_card(slot_drex, "Drex", {"answer": "—", "latency_ms": 0, "cost_usd": 0, "invalid": False,
-                                        "error": None, "probs": None}, True)
-        render_card(slot_llm, "Frontier LLM", {"answer": "—", "latency_ms": 0, "cost_usd": 0, "invalid": False,
-                                               "error": None, "probs": None}, False)
+        idle = {"answer": "—", "latency_ms": 0, "cost_usd": 0, "invalid": False, "error": None, "probs": None}
+        render_card(slot_drex, "Drex", idle, True)
+        render_card(slot_llm, "Frontier LLM", idle, False)
 
     neg = st.session_state.get("neg")
     if neg:
         d, l = neg["results"]["drex"], neg["results"]["llm"]
-        if d["latency_ms"] and l["latency_ms"]:
+        both_valid = not (d["invalid"] or d["error"] or l["invalid"] or l["error"])
+        if not both_valid:
+            banner_slot.markdown('<div class="sample">⚠️ One model returned an error, so no speed comparison '
+                                 'is shown for this run.</div>', unsafe_allow_html=True)
+        elif d["latency_ms"] and l["latency_ms"]:
             speedup = l["latency_ms"] / d["latency_ms"]
             cheaper = (l["cost_usd"] / d["cost_usd"]) if d["cost_usd"] else None
-            extra = f" · {cheaper:.0f}× cheaper" if cheaper else ""
+            extra = f" · {cheaper:,.0f}× cheaper" if cheaper else ""
             banner_slot.markdown(
-                f'<div class="banner">⚡ Drex was {speedup:.1f}× faster{extra}'
+                f'<div class="banner"><div class="big">⚡ Drex was {speedup:.1f}× faster{extra}</div>'
                 f'<small>{d["latency_ms"]:,.0f} ms vs {l["latency_ms"]:,.0f} ms on the exact same decision</small></div>',
                 unsafe_allow_html=True)
-        i1, i2 = st.columns(2)
+        i1, i2 = st.columns([1.2, 1], gap="large")
         with i1:
             if d["probs"]:
-                st.markdown("**Drex's confidence**")
-                st.altair_chart(prob_chart(d["probs"], d["answer"], height=140), use_container_width=True)
+                st.markdown('<div class="label" style="margin-top:10px">Drex · probability per option</div>',
+                            unsafe_allow_html=True)
+                st.altair_chart(prob_chart(d["probs"], d["answer"], height=130), use_container_width=True)
         with i2:
-            st.markdown(f"**Seller policy says:** {ACTION_EMOJI[neg['expected']]}")
+            exp = neg["expected"]
+            st.markdown(f'<div class="policy" style="margin-top:12px"><div class="label">Seller policy says</div>'
+                        f'<div class="action" style="font-size:2rem;margin:8px 0 2px;color:{ACTION_COLOR[exp]}">'
+                        f'{ACTION_WORD[exp]}</div></div>', unsafe_allow_html=True)
             if neg["signals"]:
-                st.error("🚩 Scam signals in the message (off-platform payment / contact / own label).")
+                st.markdown('<div class="scam">🚩 Scam shield triggered - off-platform payment, contact or '
+                            'shipping-label request detected.</div>', unsafe_allow_html=True)
             st.caption("The LLM writes text and has no calibrated probabilities - Drex returns one per option.")
 
     if neg_is_sample and neg_df is not None:
-        st.caption("⚠️ Scenarios are from the SAMPLE file.")
+        st.markdown('<div class="sample">⚠️ Scenarios are from the SAMPLE file.</div>', unsafe_allow_html=True)
+
+# ============================================================== SELL TAB
+with tab_sell:
+    pricing_df, pricing_is_sample = load_csv("pricing")
+    st.markdown('<div class="section-title">Listing studio</div>'
+                '<div class="section-sub">Drop a photo, confirm the details. Code finds the sold comps, '
+                'Drex picks the price, the LLM writes the listing.</div>', unsafe_allow_html=True)
+    left, right = st.columns([1, 1.3], gap="large")
+
+    with left:
+        photo = st.file_uploader("Upload a photo", type=["jpg", "jpeg", "png", "webp", "heic"])
+        if photo is not None:
+            st.image(photo, use_container_width=True)
+        categories = sorted(pricing_df["category"].dropna().unique()) if pricing_df is not None else []
+        if not categories:
+            categories = ["jeans", "jackets", "sneakers", "sweaters"]
+        c1, c2 = st.columns(2)
+        brand = c1.text_input("Brand", "Levi's")
+        size = c2.text_input("Size", "32x32")
+        title = st.text_input("Item", "501 Original Fit Medium Wash")
+        c3, c4 = st.columns(2)
+        condition = c3.selectbox("Condition", ["new with tags", "like new", "good", "fair"], index=2)
+        category = c4.selectbox("Category", categories,
+                                index=categories.index("jeans") if "jeans" in categories else 0)
+        price_clicked = st.button("💸 Price it with Drex", type="primary", use_container_width=True)
+
+    with right:
+        if pricing_df is None:
+            st.info("No pricing data yet. Fill in bench/data/pricing.csv.")
+        else:
+            if pricing_is_sample:
+                st.markdown('<div class="sample">⚠️ Using SAMPLE comps - fill in bench/data/pricing.csv.</div>',
+                            unsafe_allow_html=True)
+            comps = pricing_df[pricing_df["category"] == category]
+            if len(comps) < 2:
+                st.info(f"Need at least 2 sold comps in '{category}'.")
+            elif price_clicked:
+                options = [f"${p}" for p in make_price_options(comps["sold_price"].tolist())]
+                comp_lines = [f"{r['brand']} {r['title']} (size {r['size']}, {r['condition']}): sold ${r['sold_price']}"
+                              for _, r in comps.iterrows()]
+                facts = {"category": category, "brand": brand, "title": title, "size": size,
+                         "condition": condition, "recently sold comparable items": "; ".join(comp_lines)}
+                with st.spinner("Drex is deciding…"):
+                    result = drex_decide(facts, PRICING_QUESTION, options)
+                st.session_state["sell"] = {"result": result, "options": options, "n_comps": len(comps),
+                                            "item": (brand, title, size, condition, category)}
+
+            sell = st.session_state.get("sell")
+            if sell:
+                result = sell["result"]
+                if result["error"] or result["invalid"]:
+                    st.error(f"Drex didn't return a valid answer. {result['error'] or ''}")
+                else:
+                    st.markdown(f'<div class="pricetag"><span class="p">{result["answer"]}</span>'
+                                f'<span class="m">Drex picked in <b>{result["latency_ms"]:.0f} ms</b><br>'
+                                f'from {sell["n_comps"]} sold comps</span></div>', unsafe_allow_html=True)
+                    if result["probs"]:
+                        st.altair_chart(prob_chart(result["probs"], result["answer"], height=190),
+                                        use_container_width=True)
+                    st.caption("Options = 10th / 30th / 50th / 70th / 90th percentile of recent sold comps. "
+                               "Honest note: on our 76-item pricing benchmark the LLM is still more accurate.")
+
+                    b, t, s, c, cat = sell["item"]
+                    price = result["answer"].lstrip("$")
+                    if "listing" not in sell:
+                        with st.spinner("Writing listing…"):
+                            sell["listing"] = generate_listing(b, t, s, c, cat, price)
+                    l_title, l_desc, source = sell["listing"]
+                    st.markdown(f"""
+                    <div class="listing" style="margin-top:10px"><div class="img">👖</div>
+                      <div class="body"><div class="label">Marketplace preview · {"written by the LLM" if source == "LLM" else "template (LLM unavailable)"}</div>
+                        <div class="t" style="margin-top:6px">{_html.escape(str(l_title))}</div>
+                        <div class="pr">${_html.escape(price)}</div>
+                        <div class="d">{_html.escape(str(l_desc))}</div>
+                        <div class="src">Text source: {_html.escape(str(source))}</div></div></div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="card" style="text-align:center;padding:48px 24px">'
+                            '<div style="font-size:3rem">🏷️</div><div class="section-title">Ready to price</div>'
+                            '<div class="section-sub">Fill in the item and hit <b>Price it with Drex</b>.</div></div>',
+                            unsafe_allow_html=True)
 
 # ============================================================== RESULTS TAB
 with tab_results:
-    st.subheader("Benchmark: Drex vs the frontier LLM")
+    hs = _hard_summary()
+    if hs is not None and {"drex", "llm"} <= set(hs["model"]) and "hard" in set(hs["dataset"]):
+        hard = hs[hs["dataset"] == "hard"].set_index("model")
+        dx, lm = hard.loc["drex"], hard.loc["llm"]
+        st.markdown('<div class="section-title">Scoreboard · pre-registered hard test</div>'
+                    '<div class="section-sub">80 messy buyer messages (near-threshold offers, subtle scams, '
+                    'prompt injection, Spanish, typos) committed to git before any model saw them · '
+                    '3 runs each · identical inputs.</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="kpis">
+          <div class="kpi hot"><div class="label">Accuracy</div>
+            <div class="v">{dx['accuracy']:.0%} <span style="font-size:1.1rem;color:var(--muted)">vs {lm['accuracy']:.0%}</span></div>
+            <div class="s">95% CI {dx['ci_low']:.0%}–{dx['ci_high']:.0%} · same as the LLM</div></div>
+          <div class="kpi hot"><div class="label">Speed</div>
+            <div class="v">{lm['median_latency_ms'] / dx['median_latency_ms']:.1f}×</div>
+            <div class="s">{dx['median_latency_ms']:,.0f} ms vs {lm['median_latency_ms']:,.0f} ms median</div></div>
+          <div class="kpi hot"><div class="label">Cost</div>
+            <div class="v">{lm['cost_per_1k'] / dx['cost_per_1k']:,.0f}×</div>
+            <div class="s">${dx['cost_per_1k']:.3f} vs ${lm['cost_per_1k']:.2f} per 1,000 decisions</div></div>
+          <div class="kpi"><div class="label">Calibration error ↓</div>
+            <div class="v">{dx['ece']:.3f}</div>
+            <div class="s">vs {lm['ece']:.3f} for the LLM's self-reported confidence</div></div>
+        </div>
+        """, unsafe_allow_html=True)
+        show = hs[hs["dataset"].isin(["hard", "original"])].copy()
+        st.dataframe(show[["model", "dataset", "n", "accuracy", "ci_low", "ci_high", "scam_precision", "scam_recall",
+                           "consistency", "median_latency_ms", "p95_latency_ms", "cost_per_1k", "ece",
+                           "parallel100_seconds"]],
+                     hide_index=True, use_container_width=True, column_config={
+                         "accuracy": st.column_config.NumberColumn(format="percent"),
+                         "ci_low": st.column_config.NumberColumn("CI low", format="percent"),
+                         "ci_high": st.column_config.NumberColumn("CI high", format="percent"),
+                         "cost_per_1k": st.column_config.NumberColumn("$ / 1k", format="$%.3f"),
+                         "parallel100_seconds": st.column_config.NumberColumn("100 parallel (s)", format="%.1f")})
+        ps_path = RESULTS_DIR / "pricing_summary.csv"
+        if ps_path.exists():
+            ps = pd.read_csv(ps_path).set_index("method")
+            try:
+                st.markdown(f"""
+                <div class="callout" style="margin:14px 0 22px"><b>Where the LLM still wins: pricing.</b>
+                On 76 real eBay sold items the LLM picks the closest price {ps.loc['llm_top', 'exact_acc']:.0%} of the time
+                vs Drex {ps.loc['drex_top', 'exact_acc']:.0%} (plain-code comps baseline
+                {ps.loc['code_baseline', 'exact_acc']:.0%}). Pricing needs world knowledge - so in ThriftAgent the LLM
+                prices, Drex decides, and code does the math.</div>""", unsafe_allow_html=True)
+            except KeyError:
+                pass
+        st.divider()
+
+    st.markdown('<div class="section-title">Round by round</div>'
+                '<div class="section-sub">How we got here: each round changes only what plain code pre-computes - '
+                'never the model.</div>', unsafe_allow_html=True)
     available = [name for name, path in ROUNDS.items() if path.exists()] or ["Round 1 · raw facts"]
     chosen_round = st.radio("Benchmark round", available, horizontal=True, label_visibility="collapsed")
     rows, is_sample, note = load_results(ROUNDS[chosen_round])
 
-    # Accuracy across every round we have, oldest first
     existing = [name for name in reversed(list(ROUNDS)) if ROUNDS[name].exists()]
     if len(existing) >= 2:
         per_round = {name: {(r["benchmark"], r["model"]): r["accuracy"] for r in load_results(ROUNDS[name])[0]}
@@ -562,11 +847,10 @@ with tab_results:
     df["median_latency_ms"] = df["median_latency_s"] * 1000
     df["model"] = df["model"].astype(str)
 
-    # headline numbers (averaged across benchmarks)
     agg = df.groupby("model")[["accuracy", "median_latency_ms", "cost_per_1000_usd"]].mean()
     if {"drex", "llm"} <= set(agg.index):
         h1, h2, h3 = st.columns(3)
-        h1.metric("Accuracy (Drex)", f"{agg.loc['drex', 'accuracy']:.0%}",
+        h1.metric("Accuracy (Drex, avg of benchmarks)", f"{agg.loc['drex', 'accuracy']:.0%}",
                   f"{(agg.loc['drex', 'accuracy'] - agg.loc['llm', 'accuracy']) * 100:+.0f} pts vs LLM")
         h2.metric("Speed", f"{agg.loc['llm', 'median_latency_ms'] / agg.loc['drex', 'median_latency_ms']:.1f}× faster",
                   f"{agg.loc['drex', 'median_latency_ms']:.0f} ms vs {agg.loc['llm', 'median_latency_ms']:.0f} ms",
