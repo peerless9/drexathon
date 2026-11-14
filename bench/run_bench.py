@@ -184,6 +184,8 @@ def summarize(rows: list) -> dict:
         "n": total,
         "correct": correct,
         "accuracy": round(correct / total, 4) if total else None,
+        # Same, but ignoring calls that errored (e.g. rate limits) - those aren't wrong answers.
+        "accuracy_on_answered": round(correct / (total - errors), 4) if total - errors else None,
         "invalid": invalid,
         "errors": errors,
         "median_latency_s": round(statistics.median(latencies), 4) if latencies else None,
