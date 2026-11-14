@@ -244,7 +244,8 @@ def load_results(path=SUMMARY_PATH):
                 for model, m in (info.get("models") or {}).items():
                     if "skipped" in m or m.get("accuracy") is None:
                         continue
-                    rows.append({"benchmark": bench, "model": model, **m,
+                    # put "model" last: summary.json rows carry their own long model id
+                    rows.append({**m, "benchmark": bench, "model": model, "model_id": m.get("model"),
                                  "_sample_data": info.get("is_sample_data", False)})
             if rows:
                 is_sample = any(r["_sample_data"] for r in rows)
@@ -351,7 +352,8 @@ with tab_sell:
         title = st.text_input("Item", "501 Original Fit Medium Wash")
         c3, c4 = st.columns(2)
         condition = c3.selectbox("Condition", ["new with tags", "like new", "good", "fair"], index=2)
-        category = c4.selectbox("Category", categories)
+        category = c4.selectbox("Category", categories,
+                                index=categories.index("jeans") if "jeans" in categories else 0)
         price_clicked = st.button("💸 Price it with Drex", type="primary", use_container_width=True)
 
     with right:
