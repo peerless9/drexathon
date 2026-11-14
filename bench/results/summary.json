@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-11-14T11:53:31",
+  "benchmarks": {
+    "negotiation": {
+      "data_file": "negotiation.csv",
+      "is_sample_data": false,
+      "models": {
+        "llm": {
+          "model": "anthropic:claude-opus-5-5",
+          "n": 30,
+          "correct": 30,
+          "accuracy": 1.0,
+          "accuracy_on_answered": 1.0,
+          "invalid": 0,
+          "errors": 0,
+          "median_latency_s": 1.4143,
+          "cost_per_1000_usd": 2.1959
+        },
+        "drex": {
+          "model": "drex:drex-max-v1.1",
+          "n": 30,
+          "correct": 28,
+          "accuracy": 0.9333,
+          "accuracy_on_answered": 0.9333,
+          "invalid": 0,
+          "errors": 0,
+          "median_latency_s": 0.2464,
+          "cost_per_1000_usd": 0.0075
+        }
+      }
+    },
+    "pricing": {
+      "data_file": "pricing.csv",
+      "is_sample_data": false,
+      "models": {
+        "drex": {
+          "mean_dollar_error": 12.03,
+          "model": "drex:drex-max-v1.1",
+          "n": 40,
+          "correct": 15,
+          "accuracy": 0.375,
+          "accuracy_on_answered": 0.375,
+          "invalid": 0,
+          "errors": 0,
+          "median_latency_s": 0.2565,
+          "cost_per_1000_usd": 0.0158
+        },
+        "llm": {
+          "mean_dollar_error": 11.39,
+          "model": "anthropic:claude-opus-5-5",
+          "n": 40,
+          "correct": 17,
+          "accuracy": 0.425,
+          "accuracy_on_answered": 0.425,
+          "invalid": 0,
+          "errors": 0,
+          "median_latency_s": 2.0251,
+          "cost_per_1000_usd": 5.2517
+        }
+      },
+      "baseline_always_median": {
+        "accuracy": 0.1,
+        "mean_dollar_error": 14.17
+      }
+    }
+  },
+  "llm_model": "anthropic:claude-opus-5-5"
+}
