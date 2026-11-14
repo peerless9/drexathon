@@ -229,6 +229,7 @@ SAMPLE_RESULTS = {
 
 
 ROUNDS = {
+    "Round 3 · prices as words + closest comps": REPO_ROOT / "bench" / "results" / "v3" / "summary.json",
     "Round 2 · code does the math": REPO_ROOT / "bench" / "results" / "v2" / "summary.json",
     "Round 1 · raw facts": SUMMARY_PATH,
 }
@@ -536,21 +537,21 @@ with tab_results:
     chosen_round = st.radio("Benchmark round", available, horizontal=True, label_visibility="collapsed")
     rows, is_sample, note = load_results(ROUNDS[chosen_round])
 
-    # Before -> after accuracy, when both rounds exist
-    if all(path.exists() for path in ROUNDS.values()):
-        before, _, _ = load_results(ROUNDS["Round 1 · raw facts"])
-        after, _, _ = load_results(ROUNDS["Round 2 · code does the math"])
-        b = {(r["benchmark"], r["model"]): r["accuracy"] for r in before}
-        a = {(r["benchmark"], r["model"]): r["accuracy"] for r in after}
-        keys = [k for k in a if k in b]
+    # Accuracy across every round we have, oldest first
+    existing = [name for name in reversed(list(ROUNDS)) if ROUNDS[name].exists()]
+    if len(existing) >= 2:
+        per_round = {name: {(r["benchmark"], r["model"]): r["accuracy"] for r in load_results(ROUNDS[name])[0]}
+                     for name in existing}
+        keys = sorted(set.intersection(*(set(v) for v in per_round.values())))
         if keys:
-            with st.expander("📈 Round 1 → Round 2 accuracy", expanded=True):
-                st.dataframe(pd.DataFrame([{"benchmark": k[0], "model": k[1], "round 1": b[k], "round 2": a[k],
-                                            "change (pts)": round((a[k] - b[k]) * 100, 1)} for k in sorted(keys)]),
-                             hide_index=True, use_container_width=True, column_config={
-                                 "round 1": st.column_config.NumberColumn(format="percent"),
-                                 "round 2": st.column_config.NumberColumn(format="percent")})
-                st.caption("Round 1's pricing ran on Levi's first 40 rows; round 2 uses all 76.")
+            with st.expander("📈 Accuracy round by round", expanded=True):
+                short = {name: name.split(" · ")[0].lower() for name in existing}
+                table = pd.DataFrame([{"benchmark": k[0], "model": k[1],
+                                       **{short[n]: per_round[n][k] for n in existing}} for k in keys])
+                st.dataframe(table, hide_index=True, use_container_width=True, column_config={
+                    short[n]: st.column_config.NumberColumn(format="percent") for n in existing})
+                st.caption("In every round both models get identical facts and options; "
+                           "rounds differ only in what plain code pre-computes for them.")
     if is_sample:
         st.markdown('<div class="sample">⚠️ SAMPLE NUMBERS - not real results. Run '
                     '<code>python bench/run_bench.py</code> to fill bench/results/summary.json.</div>',

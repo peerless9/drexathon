@@ -22,6 +22,12 @@ VARIANTS - every change gives BOTH models exactly the same extra input:
       + negotiation fact "90% of list price = $X"
       Also reported (not used as the answer): accuracy if Drex picked the option
       closest to its probability-weighted price.
+  v3  = v2, plus for pricing only ("Drex decides, code does the math" again):
+          options are WORDS ("much lower" ... "much higher" than typical), each described
+          with its dollar price - same 5 price points as v2, so "correct" is unchanged
+          code ranks comps by similarity (shared title words, size, condition) and shows
+          the 3 closest sales + their median first
+      Extra baseline: "just use the 3 closest comps' median" (no model at all).
 """
 
 import argparse
@@ -90,7 +96,32 @@ def load_csv(name: str):
 PERCENTILES = {
     "v1": (0.25, 0.40, 0.50, 0.60, 0.75),
     "v2": (0.10, 0.30, 0.50, 0.70, 0.90),
+    "v3": (0.10, 0.30, 0.50, 0.70, 0.90),
 }
+
+# v3: price options as words. Drex is weak with bare dollar amounts (it hedged to the middle
+# price in 41/76 v2 cases), so we ask a relative question and map the word back to a price.
+V3_LABELS = ["much lower", "a bit lower", "about typical", "a bit higher", "much higher"]
+V3_PRICING_QUESTION = ("Compared with the recently sold comparable items, where will this item's "
+                       "sale price land?")
+_STOPWORDS = {"the", "a", "and", "of", "for", "with", "in", "on", "mens", "men's", "men", "womens",
+              "women's", "size", "sz", "new", "used", "pre-owned", "vintage", "vtg", "-", "/", "&"}
+
+
+def _words(text: str) -> set:
+    return {w.strip(".,()'\"").lower() for w in str(text).split()} - _STOPWORDS - {""}
+
+
+def closest_comps(row, comps: pd.DataFrame, k: int = 3) -> pd.DataFrame:
+    """Rank comps by similarity to the item: shared title words, same size, same condition."""
+    item_words = _words(f"{row['brand']} {row['title']}")
+    def score(comp):
+        shared = len(item_words & _words(f"{comp['brand']} {comp['title']}"))
+        return (shared
+                + (1.5 if str(comp["size"]).lower() == str(row["size"]).lower() else 0)
+                + (1.0 if comp["condition"] == row["condition"] else 0))
+    ranked = comps.assign(_score=comps.apply(score, axis=1)).sort_values("_score", ascending=False)
+    return ranked.head(k)
 
 
 def make_price_options(comp_prices: list, variant: str = "v1") -> list:
@@ -117,6 +148,8 @@ def build_pricing_cases(dataframe: pd.DataFrame, variant: str = "v1") -> list:
 
         option_prices = make_price_options(comps["sold_price"].tolist(), variant)
         options = [f"${price}" for price in option_prices]
+        if variant == "v3":
+            options = list(V3_LABELS)
         # Correct = the option closest to the real sold price.
         distances = [abs(price - float(row["sold_price"])) for price in option_prices]
         correct = options[distances.index(min(distances))]
@@ -133,7 +166,7 @@ def build_pricing_cases(dataframe: pd.DataFrame, variant: str = "v1") -> list:
             "condition": row["condition"],
             "recently sold comparable items": "; ".join(comp_lines),
         }
-        if variant == "v2":
+        if variant in ("v2", "v3"):
             same_condition = comps[comps["condition"] == row["condition"]]["sold_price"]
             facts["number of comparable sales"] = len(comps)
             facts["median comparable sale price"] = f"${comps['sold_price'].median():.2f}"
@@ -141,8 +174,20 @@ def build_pricing_cases(dataframe: pd.DataFrame, variant: str = "v1") -> list:
             if len(same_condition) >= 2:
                 facts[f"median price of comps in the same condition ({row['condition']})"] = (
                     f"${same_condition.median():.2f} (from {len(same_condition)} sales)")
-        cases.append({"id": row["id"], "facts": facts, "question": PRICING_QUESTION,
-                      "options": options, "correct": correct,
+        question, descriptions = PRICING_QUESTION, None
+        if variant == "v3":
+            nearest = closest_comps(row, comps)
+            facts["3 most similar recent sales (picked by code)"] = "; ".join(
+                f"{c['brand']} {c['title']} (size {c['size']}, {c['condition']}): sold ${c['sold_price']}"
+                for _, c in nearest.iterrows())
+            facts["median of the 3 most similar sales"] = f"${nearest['sold_price'].median():.2f}"
+            question = V3_PRICING_QUESTION
+            descriptions = {label: f"sells for about ${price}"
+                            for label, price in zip(V3_LABELS, option_prices)}
+        cases.append({"id": row["id"], "facts": facts, "question": question,
+                      "options": options, "descriptions": descriptions, "correct": correct,
+                      "option_prices": dict(zip(options, option_prices)),
+                      "nearest_median": (float(nearest["sold_price"].median()) if variant == "v3" else None),
                       "actual_price": float(row["sold_price"])})
     return cases
 
@@ -162,7 +207,7 @@ def build_negotiation_cases(dataframe: pd.DataFrame, variant: str = "v1") -> lis
             "offer": f"${row['offer']}",
         }
         descriptions = None
-        if variant == "v2":
+        if variant in ("v2", "v3"):
             offer, list_price, floor = float(row["offer"]), float(row["list_price"]), float(row["floor_price"])
             facts["offer as % of list price"] = f"{100 * offer / list_price:.1f}%"
             facts["90% of list price"] = f"${0.9 * list_price:.2f}"
@@ -184,11 +229,13 @@ def run_cases(model_name: str, client, cases: list, variant: str = "v1") -> list
         result = client.decide(case["facts"], case["question"], case["options"],
                                case.get("descriptions"))
         result["top_answer"] = result["answer"]
-        if variant == "v2" and "actual_price" in case and result["probabilities"]:
+        price_of = case.get("option_prices") or {}
+        if variant in ("v2", "v3") and "actual_price" in case and result["probabilities"]:
             # Probability-weighted price, then the option closest to it.
-            expected = sum(prob * float(str(option).strip("$"))
+            expected = sum(prob * float(price_of.get(option, str(option).strip("$")))
                            for option, prob in result["probabilities"].items())
-            result["expected_option"] = min(case["options"], key=lambda o: abs(float(o.strip("$")) - expected))
+            result["expected_option"] = min(
+                case["options"], key=lambda o: abs(float(price_of.get(o, o.strip("$"))) - expected))
             result["expected_price"] = round(expected, 2)
         is_correct = (not result["invalid"]) and result["answer"] == case["correct"]
         status = "ERROR" if result["error"] else ("ok " if is_correct else "MISS")
@@ -200,7 +247,8 @@ def run_cases(model_name: str, client, cases: list, variant: str = "v1") -> list
         # Pricing only: how many dollars off was the chosen price from the real sold price?
         dollar_error = None
         if "actual_price" in case and result["answer"]:
-            dollar_error = abs(float(str(result["answer"]).strip("$")) - case["actual_price"])
+            dollar_error = abs(float(price_of.get(result["answer"], str(result["answer"]).strip("$")))
+                               - case["actual_price"])
         rows.append({
             "id": case["id"],
             "dollar_error": dollar_error,
@@ -260,7 +308,7 @@ def main():
     parser.add_argument("--models", default="llm,drex", help="comma list: llm,drex")
     parser.add_argument("--bench", default="pricing,negotiation", help="comma list: pricing,negotiation")
     parser.add_argument("--limit", type=int, default=None, help="only run the first N rows of each CSV")
-    parser.add_argument("--variant", default="v1", choices=["v1", "v2"], help="see VARIANTS at the top")
+    parser.add_argument("--variant", default="v1", choices=["v1", "v2", "v3"], help="see VARIANTS at the top")
     args = parser.parse_args()
 
     model_names = [name.strip() for name in args.models.split(",") if name.strip()]
@@ -306,13 +354,20 @@ def main():
         if bench_name == "pricing" and cases:
             # Dumb baseline: always pick the middle option (the comps' median).
             hits = sum(1 for case in cases if case["options"][2] == case["correct"])
-            errors = [abs(float(case["options"][2].strip("$")) - case["actual_price"]) for case in cases]
+            errors = [abs(float(case["option_prices"][case["options"][2]]) - case["actual_price"]) for case in cases]
             bench_summary["baseline_always_median"] = {
                 "accuracy": round(hits / len(cases), 4),
                 "mean_dollar_error": round(statistics.mean(errors), 2),
             }
             print(f"  [baseline] always-median: {hits}/{len(cases)} correct, "
                   f"${statistics.mean(errors):.2f} average error")
+            if cases[0].get("nearest_median") is not None:
+                # Plain-code baseline: the option closest to the 3 most similar comps' median.
+                def nearest_pick(case):
+                    return min(case["options"], key=lambda o: abs(case["option_prices"][o] - case["nearest_median"]))
+                hits = sum(1 for case in cases if nearest_pick(case) == case["correct"])
+                bench_summary["baseline_nearest_comps"] = {"accuracy": round(hits / len(cases), 4)}
+                print(f"  [baseline] 3-closest-comps median: {hits}/{len(cases)} correct")
         for model_name in model_names:
             if model_name == "drex" and not drex_client.is_configured():
                 print("  [drex] skipped: not configured yet (needs DREX_API_KEY + real _call_drex)")

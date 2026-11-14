@@ -119,6 +119,10 @@ def parse_answer(text: str, options: list):
     for option in options:
         if answer.lower() == str(option).strip().lower():
             return option
+    # The model sometimes copies the whole "option: description" line - accept that too.
+    for option in options:
+        if answer.lower().startswith(str(option).strip().lower() + ":"):
+            return option
     return None
 
 

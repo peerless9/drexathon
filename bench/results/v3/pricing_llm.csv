@@ -1,0 +1,77 @@
+id,dollar_error,correct_answer,answer,top_answer,expected_price,expected_option_correct,is_correct,invalid,latency_s,input_tokens,output_tokens,cost_usd,probabilities,error,model
+J01,19.009999999999998,much lower,a bit lower,a bit lower,,,False,False,2.196988124982454,1343,22,0.005812,,,anthropic:claude-opus-5-5
+J02,2.990000000000002,a bit lower,a bit lower,a bit lower,,,True,False,1.554832166992128,1340,22,0.0058,,,anthropic:claude-opus-5-5
+J03,4.050000000000001,a bit lower,a bit lower,a bit lower,,,True,False,1.0852848339127377,1339,22,0.005796,,,anthropic:claude-opus-5-5
+J04,5.0,about typical,about typical,about typical,,,True,False,1.861761917010881,1340,132,0.008,,,anthropic:claude-opus-5-5
+J05,12.0,a bit higher,a bit higher,a bit higher,,,True,False,1.7739419169956818,1341,110,0.007564,,,anthropic:claude-opus-5-5
+J06,3.990000000000002,a bit lower,a bit lower,a bit lower,,,True,False,1.4242434999905527,1340,22,0.0058,,,anthropic:claude-opus-5-5
+J07,11.990000000000002,a bit higher,a bit higher,a bit higher,,,True,False,2.9105646669631824,1326,150,0.008304,,,anthropic:claude-opus-5-5
+J08,11.010000000000002,much lower,a bit lower,a bit lower,,,False,False,1.6618950000265613,1341,22,0.005804,,,anthropic:claude-opus-5-5
+J09,9.990000000000002,a bit higher,about typical,about typical,,,False,False,2.052866082987748,1338,94,0.007232,,,anthropic:claude-opus-5-5
+J10,2.0,much lower,much lower,much lower,,,True,False,2.6254302500747144,1340,176,0.00888,,,anthropic:claude-opus-5-5
+S01,2.009999999999998,a bit lower,a bit lower,a bit lower,,,True,False,1.401715041953139,1139,22,0.004996,,,anthropic:claude-opus-5-5
+S02,42.01,much lower,a bit lower,a bit lower,,,False,False,1.4337215840350837,1132,22,0.004968,,,anthropic:claude-opus-5-5
+S03,4.990000000000002,about typical,a bit lower,a bit lower,,,False,False,0.9927096669562161,1137,22,0.004988,,,anthropic:claude-opus-5-5
+S04,3.989999999999995,a bit higher,a bit higher,a bit higher,,,True,False,1.7384456250583753,1077,22,0.004748,,,anthropic:claude-opus-5-5
+S05,10.009999999999998,about typical,a bit higher,a bit higher,,,False,False,2.915633208001964,1103,163,0.007672,,,anthropic:claude-opus-5-5
+S06,3.989999999999995,a bit higher,a bit higher,a bit higher,,,True,False,2.9425074589671567,1106,221,0.008844,,,anthropic:claude-opus-5-5
+S07,33.989999999999995,much higher,a bit higher,a bit higher,,,False,False,1.351846499950625,1109,22,0.004876,,,anthropic:claude-opus-5-5
+S08,19.979999999999997,a bit lower,much lower,much lower,,,False,False,1.7615405418910086,1143,20,0.004972,,,anthropic:claude-opus-5-5
+S09,38.31,much higher,a bit higher,a bit higher,,,False,False,1.8932302079629153,1105,22,0.00486,,,anthropic:claude-opus-5-5
+S10,17.009999999999998,much lower,a bit lower,a bit lower,,,False,False,2.047084500081837,1133,139,0.007312,,,anthropic:claude-opus-5-5
+F01,5.009999999999998,about typical,a bit higher,a bit higher,,,False,False,2.1519147920189425,1109,130,0.007036,,,anthropic:claude-opus-5-5
+F02,11.009999999999998,a bit lower,about typical,about typical,,,False,False,1.535460083046928,1150,20,0.005,,,anthropic:claude-opus-5-5
+F03,6.010000000000002,much lower,much lower,much lower,,,True,False,1.7850315409014001,1145,95,0.00648,,,anthropic:claude-opus-5-5
+F04,19.0,much lower,a bit lower,a bit lower,,,False,False,2.312159625114873,1149,136,0.007316,,,anthropic:claude-opus-5-5
+F05,0.490000000000002,a bit lower,a bit lower,a bit lower,,,True,False,2.6927709589945152,1150,127,0.00714,,,anthropic:claude-opus-5-5
+F06,6.990000000000002,much higher,a bit higher,a bit higher,,,False,False,1.8429173330077901,1161,107,0.006784,,,anthropic:claude-opus-5-5
+F07,11.980000000000004,much higher,a bit higher,a bit higher,,,False,False,0.9836658749263734,1163,22,0.005092,,,anthropic:claude-opus-5-5
+F08,1.990000000000002,a bit higher,a bit higher,a bit higher,,,True,False,1.366764499922283,1153,22,0.005052,,,anthropic:claude-opus-5-5
+F09,9.049999999999997,about typical,a bit higher,a bit higher,,,False,False,1.1002997920149937,1153,22,0.005052,,,anthropic:claude-opus-5-5
+F10,2.0,a bit higher,a bit higher,a bit higher,,,True,False,1.049925500061363,1163,22,0.005092,,,anthropic:claude-opus-5-5
+H01,4.0,a bit higher,a bit higher,a bit higher,,,True,False,2.668320875032805,1148,170,0.007992,,,anthropic:claude-opus-5-5
+H02,12.990000000000002,a bit higher,about typical,about typical,,,False,False,1.6645364579744637,1181,20,0.005124,,,anthropic:claude-opus-5-5
+H03,5.91,a bit lower,about typical,about typical,,,False,False,2.3144688330357894,1173,20,0.005092,,,anthropic:claude-opus-5-5
+H04,10.0,much higher,much higher,much higher,,,True,False,1.8841232090489939,1151,96,0.006524,,,anthropic:claude-opus-5-5
+H05,3.789999999999999,a bit lower,a bit lower,a bit lower,,,True,False,2.169246583012864,1195,130,0.00738,,,anthropic:claude-opus-5-5
+H06,20.76,much lower,a bit higher,a bit higher,,,False,False,2.2770710829645395,1181,124,0.007204,,,anthropic:claude-opus-5-5
+H07,11.010000000000002,much lower,a bit lower,a bit lower,,,False,False,0.9631003750255331,1191,22,0.005204,,,anthropic:claude-opus-5-5
+H08,4.009999999999998,a bit higher,a bit higher,a bit higher,,,True,False,2.622864665929228,1181,212,0.008964,,,anthropic:claude-opus-5-5
+H09,19.990000000000002,much higher,a bit higher,a bit higher,,,False,False,1.7692089169286191,1191,120,0.007164,,,anthropic:claude-opus-5-5
+H10,6.010000000000002,much lower,a bit lower,a bit lower,,,False,False,0.9249979170272127,1181,22,0.005164,,,anthropic:claude-opus-5-5
+J11,27.0,much higher,a bit higher,a bit higher,,,False,False,2.2138012499781325,1342,135,0.008068,,,anthropic:claude-opus-5-5
+J12,12.049999999999997,about typical,a bit higher,a bit higher,,,False,False,1.7358012499753386,1339,22,0.005796,,,anthropic:claude-opus-5-5
+J13,27.0,much higher,a bit higher,a bit higher,,,False,False,0.9270728339906782,1317,22,0.005708,,,anthropic:claude-opus-5-5
+L01,87.0,about typical,much lower,much lower,,,False,False,2.4839527920121327,716,147,0.005804,,,anthropic:claude-opus-5-5
+L02,201.0,much higher,much higher,much higher,,,True,False,2.375264000031166,696,112,0.005024,,,anthropic:claude-opus-5-5
+L03,115.0,much lower,about typical,about typical,,,False,False,1.7039971250342205,725,20,0.0033,,,anthropic:claude-opus-5-5
+L04,48.99000000000001,about typical,a bit lower,a bit lower,,,False,False,1.6382999999914318,703,22,0.003252,,,anthropic:claude-opus-5-5
+K01,34.0,a bit higher,a bit lower,a bit lower,,,False,False,2.2371758749941364,1027,152,0.007148,,,anthropic:claude-opus-5-5
+K02,2.3799999999999955,a bit higher,a bit higher,a bit higher,,,True,False,2.2647253329632804,1010,173,0.0075,,,anthropic:claude-opus-5-5
+K03,1.990000000000002,a bit lower,a bit lower,a bit lower,,,True,False,2.848888582899235,1029,158,0.007276,,,anthropic:claude-opus-5-5
+K04,13.989999999999995,a bit higher,a bit higher,a bit higher,,,True,False,1.9186306250048801,1009,125,0.006536,,,anthropic:claude-opus-5-5
+K05,608.0,much higher,much higher,much higher,,,True,False,1.509392207954079,1025,82,0.00574,,,anthropic:claude-opus-5-5
+K06,12.0,much lower,much lower,much lower,,,True,False,1.1242332919500768,1024,70,0.005496,,,anthropic:claude-opus-5-5
+K07,14.010000000000005,about typical,a bit higher,a bit higher,,,False,False,2.1995660830289125,1020,124,0.00656,,,anthropic:claude-opus-5-5
+K08,6.030000000000001,a bit lower,a bit lower,a bit lower,,,True,False,1.5258463750360534,1018,123,0.006532,,,anthropic:claude-opus-5-5
+K09,34.010000000000005,much lower,a bit lower,a bit lower,,,False,False,2.4856752910418436,1026,22,0.004544,,,anthropic:claude-opus-5-5
+P01,81.5,much lower,much higher,much higher,,,False,False,1.4306196669349447,892,84,0.005248,,,anthropic:claude-opus-5-5
+P02,60.989999999999995,much higher,about typical,about typical,,,False,False,0.9669667910784483,883,20,0.003932,,,anthropic:claude-opus-5-5
+P03,2.7300000000000004,much lower,much lower,much lower,,,True,False,0.922304334002547,890,20,0.00396,,,anthropic:claude-opus-5-5
+P04,65.0,a bit lower,much higher,much higher,,,False,False,2.556846334016882,893,165,0.006872,,,anthropic:claude-opus-5-5
+P05,4.32,a bit lower,a bit lower,a bit lower,,,True,False,2.309654208016582,893,153,0.006632,,,anthropic:claude-opus-5-5
+P06,45.900000000000006,a bit higher,about typical,about typical,,,False,False,1.895004375022836,893,78,0.005132,,,anthropic:claude-opus-5-5
+P07,29.0,about typical,much lower,much lower,,,False,False,3.173295917105861,897,164,0.006868,,,anthropic:claude-opus-5-5
+P08,47.0,much higher,a bit higher,a bit higher,,,False,False,3.2012445830041543,893,225,0.008072,,,anthropic:claude-opus-5-5
+X01,14.5,a bit lower,a bit lower,a bit lower,,,True,False,2.124823332997039,874,100,0.005496,,,anthropic:claude-opus-5-5
+X02,34.99000000000001,much higher,a bit higher,a bit higher,,,False,False,1.667004624963738,834,22,0.003776,,,anthropic:claude-opus-5-5
+X03,77.0,about typical,much higher,much higher,,,False,False,2.1454053750494495,867,121,0.005888,,,anthropic:claude-opus-5-5
+X04,95.0,much lower,about typical,about typical,,,False,False,1.9879896249622107,872,129,0.006068,,,anthropic:claude-opus-5-5
+X05,50.0,much higher,a bit higher,a bit higher,,,False,False,1.8867849999805912,865,114,0.00574,,,anthropic:claude-opus-5-5
+X06,44.010000000000005,much lower,much lower,much lower,,,True,False,1.3370860420400277,867,79,0.005048,,,anthropic:claude-opus-5-5
+X07,7.030000000000001,much higher,much higher,much higher,,,True,False,1.3873975420137867,861,100,0.005444,,,anthropic:claude-opus-5-5
+W01,3.7600000000000016,much lower,about typical,about typical,,,False,False,1.5459533339599147,799,20,0.003596,,,anthropic:claude-opus-5-5
+W02,5.030000000000001,much lower,about typical,about typical,,,False,False,1.012361790984869,805,20,0.00362,,,anthropic:claude-opus-5-5
+W03,53.0,much higher,much higher,much higher,,,True,False,1.350407624966465,800,91,0.00502,,,anthropic:claude-opus-5-5
+W04,0.9899999999999984,about typical,about typical,about typical,,,True,False,1.597247082972899,805,20,0.00362,,,anthropic:claude-opus-5-5
+W05,2.0,about typical,about typical,about typical,,,True,False,1.4848892909940332,799,81,0.004816,,,anthropic:claude-opus-5-5
