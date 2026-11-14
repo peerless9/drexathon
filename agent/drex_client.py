@@ -22,20 +22,41 @@ import requests
 DREX_URL = "https://console.nace.ai/v1/systemone"
 DREX_MODEL = os.getenv("DREX_MODEL", "drex-max-v1.1")
 
-# From console.nace.ai/docs/drex/reference/pricing (Nov 2026):
-# $0.03 per 1M INPUT tokens. Output tokens are free. No per-request fee.
-DREX_PRICE_PER_INPUT_TOKEN_USD = 0.03 / 1_000_000
+# Two places we can run Drex. Same request body and same response shape at both.
+BACKENDS = {
+    # Nace's own API: Drex Max v1.1. $0.03 per 1M input tokens, output free.
+    "nace": {
+        "url": DREX_URL,
+        "model": DREX_MODEL,
+        "key_env": "DREX_API_KEY",
+        "price_in_per_token": 0.03 / 1_000_000,
+        "price_out_per_token": 0.0,
+        "extra_headers": {"X-Nace-Client": "drexathon/1"},
+    },
+    # DeepInfra: the open-weights Drex 2.0 (deepinfra.com/nace-ai/drex-v2.0/api).
+    # Listed at $0.06 per 1M tokens; we charge it on input AND output to be safe.
+    "deepinfra": {
+        "url": "https://api.deepinfra.com/v1/decisions",
+        "model": os.getenv("DEEPINFRA_DREX_MODEL", "nace-ai/drex-v2.0"),
+        "key_env": "DEEPINFRA_API_KEY",
+        "price_in_per_token": 0.06 / 1_000_000,
+        "price_out_per_token": 0.06 / 1_000_000,
+        "extra_headers": {},
+    },
+}
+
 
 # One shared connection so we don't pay the TLS handshake on every call.
 _session = requests.Session()
 
 
-def is_configured() -> bool:
-    """True when a Drex key is set in .env."""
-    return bool(os.getenv("DREX_API_KEY"))
+def is_configured(backend: str = "nace") -> bool:
+    """True when the key for this backend is set in .env."""
+    return bool(os.getenv(BACKENDS[backend]["key_env"]))
 
 
-def _call_drex(facts, question: str, options: list, option_descriptions: dict = None) -> dict:
+def _call_drex(facts, question: str, options: list, option_descriptions: dict = None,
+               backend: str = "nace") -> dict:
     """
     Send one "choice" question to Drex. Request shape is from
     console.nace.ai/docs/drex/guides/questions:
@@ -47,7 +68,7 @@ def _call_drex(facts, question: str, options: list, option_descriptions: dict = 
     from agent.llm_client import format_facts
 
     body = {
-        "model": DREX_MODEL,
+        "model": BACKENDS[backend]["model"],
         "state": format_facts(facts),
         "questions": {
             "decision": {
@@ -59,23 +80,24 @@ def _call_drex(facts, question: str, options: list, option_descriptions: dict = 
         },
     }
     headers = {
-        "Authorization": f"Bearer {os.getenv('DREX_API_KEY')}",
-        "X-Nace-Client": "drexathon/1",
+        "Authorization": f"Bearer {os.getenv(BACKENDS[backend]['key_env'])}",
+        **BACKENDS[backend]["extra_headers"],
         "Content-Type": "application/json",
     }
-    response = _session.post(DREX_URL, json=body, headers=headers, timeout=60)
+    response = _session.post(BACKENDS[backend]["url"], json=body, headers=headers, timeout=60)
     if response.status_code != 200:
         raise RuntimeError(f"HTTP {response.status_code}: {response.text[:300]}")
     return response.json()
 
 
-def decide(facts, question: str, options: list, option_descriptions: dict = None) -> dict:
+def decide(facts, question: str, options: list, option_descriptions: dict = None,
+           backend: str = "nace") -> dict:
     """
     Same signature and return keys as llm_client.decide().
     Drex returns a probability per option; the answer is the most likely one.
     """
     result = {
-        "model": f"drex:{DREX_MODEL}",
+        "model": f"drex:{BACKENDS[backend]['model']}",
         "answer": None,
         "probabilities": None,
         "latency_s": None,
@@ -89,7 +111,7 @@ def decide(facts, question: str, options: list, option_descriptions: dict = None
 
     start = time.perf_counter()
     try:
-        data = _call_drex(facts, question, options, option_descriptions)
+        data = _call_drex(facts, question, options, option_descriptions, backend)
     except Exception as error:
         result["latency_s"] = time.perf_counter() - start
         result["error"] = f"{type(error).__name__}: {error}"
@@ -99,12 +121,14 @@ def decide(facts, question: str, options: list, option_descriptions: dict = None
     answer = data.get("answers", {}).get("decision", {})
     usage = data.get("usage", {})
     result["raw"] = str(data)
-    result["model"] = f"drex:{data.get('model', DREX_MODEL)}"
+    result["model"] = f"drex:{data.get('model', BACKENDS[backend]['model'])}"
     result["probabilities"] = answer.get("probabilities")
     result["drex_eval_ms"] = data.get("evaluation_time_ms")  # Drex's own compute time
     result["input_tokens"] = usage.get("input_tokens", 0)
     result["output_tokens"] = usage.get("output_tokens", 0)
-    result["cost_usd"] = result["input_tokens"] * DREX_PRICE_PER_INPUT_TOKEN_USD
+    price = BACKENDS[backend]
+    result["cost_usd"] = (result["input_tokens"] * price["price_in_per_token"]
+                          + result["output_tokens"] * price["price_out_per_token"])
 
     # Map Drex's label back to the exact option object we were given.
     for option in options:
