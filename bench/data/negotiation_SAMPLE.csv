@@ -1,0 +1,7 @@
+# SAMPLE DATA - FAKE ROWS FOR TESTING THE PIPELINE ONLY. Real data goes in negotiation.csv.
+id,item,list_price,floor_price,days_listed,buyer_message,offer,correct_action
+S1,Patagonia Better Sweater (M),80,55,4,"Would you take 75? Can pay right now.",75,accept
+S2,Nike Air Max 90 (10),120,85,12,"Is 95 ok? I know they have some wear.",95,counter
+S3,Carhartt Detroit Jacket (L),150,110,2,"I'll give you 60 for it",60,decline
+S4,Levi's 501 (32x32),40,28,20,"I can do 38 but I'll pay on Zelle so we skip the fees",38,decline
+S5,Arc'teryx Atom Hoody (S),180,130,7,"Would you do 140 shipped?",140,counter

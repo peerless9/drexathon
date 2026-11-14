@@ -1,0 +1,7 @@
+# SAMPLE DATA - FAKE ROWS FOR TESTING THE PIPELINE ONLY. Real data goes in pricing.csv.
+id,category,brand,title,size,condition,sold_price,url
+S1,jeans,Levi's,501 Original Fit Medium Wash,32x32,good,38,https://example.com/sample1
+S2,jeans,Levi's,505 Regular Fit Dark Wash,34x30,like new,45,https://example.com/sample2
+S3,jeans,Wrangler,Cowboy Cut Rigid Denim,33x32,fair,22,https://example.com/sample3
+S4,jeans,Lee,Relaxed Fit Light Wash,32x30,good,25,https://example.com/sample4
+S5,jeans,Levi's,550 Relaxed Fit Vintage,36x30,good,52,https://example.com/sample5
