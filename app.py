@@ -459,7 +459,7 @@ with tab_negotiate:
         slot.markdown(
             f'<div class="{cls}"><div class="label">{name}</div>{body}'
             f'<div class="latency">⏱ <b>{(result["latency_ms"] or 0):,.0f} ms</b> · '
-            f'${result["cost_usd"]:.4f}</div></div>', unsafe_allow_html=True)
+            f'${result["cost_usd"]:.6f}</div></div>', unsafe_allow_html=True)
 
     if go:
         render_card(slot_drex, "Drex", None, True)
