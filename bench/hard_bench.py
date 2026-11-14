@@ -178,7 +178,7 @@ def call_llm(case: dict) -> dict:
     import anthropic
     model = llm_client.get_model()
     prompt = llm_client.build_user_prompt(case["facts"], case["question"], case["options"], case.get("descriptions"))
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(timeout=60, max_retries=0)
     last_error = None
     for attempt in range(5):
         start = time.perf_counter()
@@ -292,10 +292,126 @@ def cmd_parallel(args):
     (RESULTS / "parallel100.json").write_text(json.dumps(out, indent=2))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and (len(sys.argv) < 2 or sys.argv[1] in ("run", "parallel")):
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["run", "parallel"])
     parser.add_argument("--models", default="drex,llm")
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()
     {"run": cmd_run, "parallel": cmd_parallel}[args.command](args)
+
+
+# ---------------------------------------------------------------- Task 5: joint decision
+# One call with 6 options = (price action) x (legit/scam). Plain code then applies the policy:
+# scam -> decline, otherwise the price action. Compared against two separate calls
+# (the action call already run above + a yes/no scam call).
+JOINT_OPTIONS = ["accept - legit", "counter - legit", "decline - legit",
+                 "accept - scam", "counter - scam", "decline - scam"]
+_PRICE_RULE = {
+    "accept": "the offer is at least 90% of the list price",
+    "counter": "the offer is at or above the floor price but below 90% of the list price",
+    "decline": "the offer is below the floor price",
+}
+JOINT_DESCRIPTIONS = {
+    f"{a} - {kind}": (f"By price alone, {_PRICE_RULE[a]}; " +
+                      ("no scam signs" if kind == "legit" else "AND the buyer shows a scam sign listed in the policy"))
+    for kind in ("legit", "scam") for a in ("accept", "counter", "decline")
+}
+JOINT_QUESTION = "Classify this case: what does the price rule say, and is the buyer legit or a scam?"
+SCAM_QUESTION = "Does the buyer show any scam sign listed in the policy?"
+SCAM_OPTIONS = ["yes", "no"]
+SCAM_DESCRIPTIONS = {"yes": "The buyer shows at least one scam sign listed in the policy",
+                     "no": "No scam signs (mentioning a payment app while paying in-app is not a scam sign)"}
+
+
+def _price_action(r) -> str:
+    offer, lp, fp = float(r["offer"]), float(r["list_price"]), float(r["floor_price"])
+    if round(offer, 2) >= round(0.9 * lp, 2):
+        return "accept"
+    return "counter" if offer >= fp else "decline"
+
+
+def cmd_joint(args):
+    df = pd.read_csv(DATA / "negotiation_hard.csv").set_index("id")
+    base = hard_cases(args.limit)
+    out_rows = []
+    for model in args.models.split(","):
+        fn, workers = MODELS[model]
+        fn(base[0])  # warm-up
+
+        def one(case):
+            r = df.loc[case["id"]]
+            joint_case = {**case, "question": JOINT_QUESTION, "options": JOINT_OPTIONS,
+                          "descriptions": JOINT_DESCRIPTIONS}
+            scam_case = {**case, "question": SCAM_QUESTION, "options": SCAM_OPTIONS,
+                         "descriptions": SCAM_DESCRIPTIONS}
+            j = _cached(model, joint_case, 0, fn)
+            s = _cached(model, scam_case, 0, fn)
+            a = _cached(model, case, 0, fn)  # the separate action call (cached from the main run)
+            truth_kind = "scam" if int(r["is_scam"]) else "legit"
+            joint_expected = f"{_price_action(r)} - {truth_kind}"
+            j_action = (None if not j["chosen"] else
+                        ("decline" if j["chosen"].endswith("scam") else j["chosen"].split(" - ")[0]))
+            return {"model": model, "item_id": case["id"], "category": case["category"],
+                    "joint_chosen": j["chosen"], "joint_expected": joint_expected,
+                    "joint_exact": j["chosen"] == joint_expected,
+                    "joint_final_action_correct": j_action == r["expected_action"],
+                    "joint_scam_correct": (j["chosen"] or "").endswith(truth_kind),
+                    "joint_latency_ms": j["latency_ms"], "joint_cost_usd": j["cost_usd"],
+                    "sep_action_correct": a["chosen"] == r["expected_action"],
+                    "sep_scam_correct": s["chosen"] == ("yes" if truth_kind == "scam" else "no"),
+                    "sep_latency_ms": (a["latency_ms"] or 0) + (s["latency_ms"] or 0),
+                    "sep_cost_usd": (a["cost_usd"] or 0) + (s["cost_usd"] or 0)}
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            rows = list(pool.map(one, base))
+        out_rows += rows
+        print(f"  [{model}] joint done", flush=True)
+    detail = pd.DataFrame(out_rows)
+    detail.to_csv(RESULTS / "joint_decisions.csv", index=False)
+    summary = detail.groupby("model").agg(
+        n=("item_id", "count"),
+        joint_exact_acc=("joint_exact", "mean"),
+        joint_final_action_acc=("joint_final_action_correct", "mean"),
+        joint_scam_acc=("joint_scam_correct", "mean"),
+        sep_action_acc=("sep_action_correct", "mean"),
+        sep_scam_acc=("sep_scam_correct", "mean"),
+        joint_median_latency_ms=("joint_latency_ms", "median"),
+        sep_median_latency_ms=("sep_latency_ms", "median"),
+        joint_cost_per_1k=("joint_cost_usd", lambda x: 1000 * x.mean()),
+        sep_cost_per_1k=("sep_cost_usd", lambda x: 1000 * x.mean()),
+    ).round(4).reset_index()
+    summary.to_csv(RESULTS / "joint_summary.csv", index=False)
+    print(summary.to_string(index=False))
+
+
+# ---------------------------------------------------------------- scale test (Drex only)
+def cmd_scale(args):
+    """1,000 fresh Drex decisions (hard + original sets, cycled) at concurrency 10. No cache."""
+    pool_cases = hard_cases() + original_cases()
+    cases = [pool_cases[i % len(pool_cases)] for i in range(args.n)]
+    out = {}
+    for model in args.models.split(","):
+        fn = MODELS[model][0]
+        fn(cases[0])
+        start = time.perf_counter()
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            results = list(ex.map(fn, cases))
+        secs = time.perf_counter() - start
+        correct = sum(1 for c, r in zip(cases, results) if r["chosen"] == c["correct"])
+        out[model] = {"n": len(cases), "seconds": round(secs, 2), "decisions_per_second": round(len(cases) / secs, 1),
+                      "total_cost_usd": round(sum(r["cost_usd"] or 0 for r in results), 4),
+                      "accuracy": round(correct / len(cases), 4),
+                      "errors": sum(1 for r in results if r.get("error"))}
+        print(f"  [{model}] {out[model]}", flush=True)
+    (RESULTS / "scale1000.json").write_text(json.dumps(out, indent=2))
+
+
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] in ("joint", "scale"):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command")
+    parser.add_argument("--models", default="drex,llm,drex2")
+    parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--n", type=int, default=1000)
+    a = parser.parse_args()
+    {"joint": cmd_joint, "scale": cmd_scale}[a.command](a)
