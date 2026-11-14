@@ -26,7 +26,11 @@ load_dotenv()
 DEFAULT_MODELS = {
     "anthropic": "claude-opus-5-5",
     "openai": "gpt-4o",
+    "gemini": "gemini-pro-latest",
 }
+
+# Gemini speaks the OpenAI request format at this address, so we reuse the OpenAI client.
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
 # Price in US dollars per 1 MILLION tokens: (input, output).
 # Anthropic prices are from Anthropic's model table (Nov 2026).
@@ -36,7 +40,14 @@ PRICES_PER_MILLION = {
     "claude-sonnet-5-5": (2.00, 10.00),
     "claude-haiku-5-5": (0.10, 0.50),
     "gpt-4o": (2.50, 10.00),
+    # Gemini list prices from third-party pricing sites (Google's page agrees per them).
+    # We run on the FREE tier, but the benchmark reports list price - the fair comparison.
+    "gemini-3.5-flash": (1.50, 9.00),
 }
+
+# Free tiers rate-limit hard. On a 429/503/timeout, wait and retry this many times.
+# Only the successful attempt's time counts as latency.
+MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "4"))
 
 # Same system prompt for every decision. Drex gets the same facts/question/options.
 SYSTEM_PROMPT = (
@@ -125,10 +136,19 @@ def _call_anthropic(model: str, user_prompt: str):
     return text, response.usage.input_tokens, response.usage.output_tokens
 
 
+_openai_clients = {}  # one client per provider, reused so connections stay warm
+
+
 def _call_openai(model: str, user_prompt: str):
     from openai import OpenAI
 
-    client = OpenAI()
+    provider = get_provider()
+    if provider not in _openai_clients:
+        if provider == "gemini":
+            _openai_clients[provider] = OpenAI(api_key=os.getenv("GEMINI_API_KEY"), base_url=GEMINI_BASE_URL, timeout=60, max_retries=0)
+        else:
+            _openai_clients[provider] = OpenAI()
+    client = _openai_clients[provider]
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -138,7 +158,14 @@ def _call_openai(model: str, user_prompt: str):
         response_format={"type": "json_object"},  # forces valid JSON
     )
     text = response.choices[0].message.content or ""
-    return text, response.usage.prompt_tokens, response.usage.completion_tokens
+    output_tokens = response.usage.completion_tokens
+    # Gemini 3.x "thinks" before answering; those tokens are billed as output.
+    # Gemini leaves them out of completion_tokens but includes them in total_tokens
+    # (seen: prompt 26 + completion 16, total 272). So billed output = total - prompt.
+    total_tokens = getattr(response.usage, "total_tokens", 0) or 0
+    if total_tokens > response.usage.prompt_tokens + output_tokens:
+        output_tokens = total_tokens - response.usage.prompt_tokens
+    return text, response.usage.prompt_tokens, output_tokens
 
 
 def decide(facts, question: str, options: list) -> dict:
@@ -170,16 +197,25 @@ def decide(facts, question: str, options: list) -> dict:
         "error": None,
     }
 
-    start = time.perf_counter()
-    try:
-        if get_provider() == "openai":
-            text, tokens_in, tokens_out = _call_openai(model, user_prompt)
-        else:
-            text, tokens_in, tokens_out = _call_anthropic(model, user_prompt)
-    except Exception as error:  # keep the benchmark running even if one call fails
-        result["latency_s"] = time.perf_counter() - start
-        result["error"] = f"{type(error).__name__}: {error}"
-        return result
+    for attempt in range(MAX_RETRIES + 1):
+        start = time.perf_counter()
+        try:
+            if get_provider() in ("openai", "gemini"):
+                text, tokens_in, tokens_out = _call_openai(model, user_prompt)
+            else:
+                text, tokens_in, tokens_out = _call_anthropic(model, user_prompt)
+            result["error"] = None
+            break
+        except Exception as error:  # keep the benchmark running even if one call fails
+            result["latency_s"] = time.perf_counter() - start
+            result["error"] = f"{type(error).__name__}: {error}"
+            retryable = any(word in result["error"] for word in ("429", "503", "500", "Timeout", "RateLimit"))
+            if not retryable or attempt == MAX_RETRIES:
+                return result
+            wait_s = 5 * (attempt + 1)
+            print(f"    (LLM {result['error'][:40]}... retrying in {wait_s}s)")
+            time.sleep(wait_s)
+    result["retries"] = attempt
 
     result["latency_s"] = time.perf_counter() - start
     result["raw"] = text

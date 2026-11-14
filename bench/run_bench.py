@@ -104,7 +104,8 @@ def build_pricing_cases(dataframe: pd.DataFrame) -> list:
             "recently sold comparable items": "; ".join(comp_lines),
         }
         cases.append({"id": row["id"], "facts": facts, "question": PRICING_QUESTION,
-                      "options": options, "correct": correct})
+                      "options": options, "correct": correct,
+                      "actual_price": float(row["sold_price"])})
     return cases
 
 
@@ -141,8 +142,13 @@ def run_cases(model_name: str, client, cases: list) -> list:
               f"{(result['latency_s'] or 0):.2f}s")
         if result["error"] and number == 1:
             print(f"    -> {result['error']}")
+        # Pricing only: how many dollars off was the chosen price from the real sold price?
+        dollar_error = None
+        if "actual_price" in case and result["answer"]:
+            dollar_error = abs(float(str(result["answer"]).strip("$")) - case["actual_price"])
         rows.append({
             "id": case["id"],
+            "dollar_error": dollar_error,
             "correct_answer": case["correct"],
             "answer": result["answer"],
             "is_correct": is_correct,
@@ -168,7 +174,12 @@ def summarize(rows: list) -> dict:
     if not latencies:
         latencies = [row["latency_s"] for row in rows if row["latency_s"] is not None and not row["error"]]
     costs = [row["cost_usd"] for row in rows if not row["error"]]
+    dollar_errors = [row["dollar_error"] for row in rows if row.get("dollar_error") is not None]
+    extra = {}
+    if dollar_errors:
+        extra["mean_dollar_error"] = round(statistics.mean(dollar_errors), 2)
     return {
+        **extra,
         "model": rows[0]["model"] if rows else None,
         "n": total,
         "correct": correct,
@@ -192,7 +203,18 @@ def main():
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
     builders = {"pricing": build_pricing_cases, "negotiation": build_negotiation_cases}
-    summary = {"generated_at": datetime.now().isoformat(timespec="seconds"), "benchmarks": {}}
+    output_path = RESULTS_DIR / "summary.json"
+
+    # Keep results for benchmarks/models we are NOT re-running this time,
+    # so "--bench pricing" doesn't wipe out the negotiation numbers.
+    summary = {"benchmarks": {}}
+    if output_path.exists():
+        try:
+            summary = json.loads(output_path.read_text())
+        except json.JSONDecodeError:
+            pass
+    summary["generated_at"] = datetime.now().isoformat(timespec="seconds")
+    summary["llm_model"] = f"{llm_client.get_provider()}:{llm_client.get_model()}"
 
     for bench_name in bench_names:
         dataframe, path = load_csv(bench_name)
@@ -208,7 +230,20 @@ def main():
         print(f"\n== {bench_name}: {len(cases)} cases from {path.name}"
               + ("   (SAMPLE DATA - not real results!)" if is_sample else ""))
 
-        bench_summary = {"data_file": path.name, "is_sample_data": is_sample, "models": {}}
+        previous_models = summary.get("benchmarks", {}).get(bench_name, {}).get("models", {})
+        if summary.get("benchmarks", {}).get(bench_name, {}).get("data_file") != path.name:
+            previous_models = {}  # different data file -> old numbers don't apply
+        bench_summary = {"data_file": path.name, "is_sample_data": is_sample, "models": dict(previous_models)}
+        if bench_name == "pricing" and cases:
+            # Dumb baseline: always pick the middle option (the comps' median).
+            hits = sum(1 for case in cases if case["options"][2] == case["correct"])
+            errors = [abs(float(case["options"][2].strip("$")) - case["actual_price"]) for case in cases]
+            bench_summary["baseline_always_median"] = {
+                "accuracy": round(hits / len(cases), 4),
+                "mean_dollar_error": round(statistics.mean(errors), 2),
+            }
+            print(f"  [baseline] always-median: {hits}/{len(cases)} correct, "
+                  f"${statistics.mean(errors):.2f} average error")
         for model_name in model_names:
             if model_name == "drex" and not drex_client.is_configured():
                 print("  [drex] skipped: not configured yet (needs DREX_API_KEY + real _call_drex)")
@@ -219,7 +254,6 @@ def main():
             bench_summary["models"][model_name] = summarize(rows)
         summary["benchmarks"][bench_name] = bench_summary
 
-    output_path = RESULTS_DIR / "summary.json"
     output_path.write_text(json.dumps(summary, indent=2))
     print(f"\nWrote {output_path.relative_to(REPO_ROOT)}")
     print(json.dumps(summary, indent=2))
