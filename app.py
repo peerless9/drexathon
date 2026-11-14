@@ -228,12 +228,18 @@ SAMPLE_RESULTS = {
 }
 
 
-def load_results():
+ROUNDS = {
+    "Round 2 · code does the math": REPO_ROOT / "bench" / "results" / "v2" / "summary.json",
+    "Round 1 · raw facts": SUMMARY_PATH,
+}
+
+
+def load_results(path=SUMMARY_PATH):
     """Returns (rows, is_sample, note)."""
     rows, is_sample, note = [], True, "No bench/results/summary.json yet."
-    if SUMMARY_PATH.exists():
+    if path.exists():
         try:
-            summary = json.loads(SUMMARY_PATH.read_text())
+            summary = json.loads(path.read_text())
             for bench, info in summary.get("benchmarks", {}).items():
                 for model, m in (info.get("models") or {}).items():
                     if "skipped" in m or m.get("accuracy") is None:
@@ -523,8 +529,26 @@ with tab_negotiate:
 
 # ============================================================== RESULTS TAB
 with tab_results:
-    rows, is_sample, note = load_results()
     st.subheader("Benchmark: Drex vs the frontier LLM")
+    available = [name for name, path in ROUNDS.items() if path.exists()] or ["Round 1 · raw facts"]
+    chosen_round = st.radio("Benchmark round", available, horizontal=True, label_visibility="collapsed")
+    rows, is_sample, note = load_results(ROUNDS[chosen_round])
+
+    # Before -> after accuracy, when both rounds exist
+    if all(path.exists() for path in ROUNDS.values()):
+        before, _, _ = load_results(ROUNDS["Round 1 · raw facts"])
+        after, _, _ = load_results(ROUNDS["Round 2 · code does the math"])
+        b = {(r["benchmark"], r["model"]): r["accuracy"] for r in before}
+        a = {(r["benchmark"], r["model"]): r["accuracy"] for r in after}
+        keys = [k for k in a if k in b]
+        if keys:
+            with st.expander("📈 Round 1 → Round 2 accuracy", expanded=True):
+                st.dataframe(pd.DataFrame([{"benchmark": k[0], "model": k[1], "round 1": b[k], "round 2": a[k],
+                                            "change (pts)": round((a[k] - b[k]) * 100, 1)} for k in sorted(keys)]),
+                             hide_index=True, use_container_width=True, column_config={
+                                 "round 1": st.column_config.NumberColumn(format="percent"),
+                                 "round 2": st.column_config.NumberColumn(format="percent")})
+                st.caption("Round 1's pricing ran on Levi's first 40 rows; round 2 uses all 76.")
     if is_sample:
         st.markdown('<div class="sample">⚠️ SAMPLE NUMBERS - not real results. Run '
                     '<code>python bench/run_bench.py</code> to fill bench/results/summary.json.</div>',
