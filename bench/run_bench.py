@@ -84,6 +84,7 @@ def load_csv(name: str):
 
 # ---------------------------------------------------------------- pricing cases
 
+<<<<<<< Updated upstream
 # v1 options sit between the 25th and 75th percentile of the comps, so the real price
 # was often outside them and the right answer was just "the lowest" or "the highest"
 # option (29 of 40 rows). v2 spreads them from the 10th to the 90th percentile.
@@ -98,6 +99,15 @@ def make_price_options(comp_prices: list, variant: str = "v1") -> list:
     series = pd.Series(comp_prices, dtype=float)
     options = []
     for percentile in PERCENTILES[variant]:
+=======
+def make_price_options(comp_prices: list) -> list:
+    """5 options from the comps: 10th/30th/50th/70th/90th percentiles, rounded to whole dollars.
+    (Was 25-75th; real sold prices often fell outside that band, so the right answer
+    was the lowest/highest option 29 of 40 times. A wider spread covers the real range.)"""
+    series = pd.Series(comp_prices, dtype=float)
+    options = []
+    for percentile in (0.10, 0.30, 0.50, 0.70, 0.90):
+>>>>>>> Stashed changes
         price = int(round(series.quantile(percentile)))
         # Keep options distinct: if rounding made a duplicate, bump it up a dollar.
         while price in options:
@@ -160,6 +170,9 @@ def build_negotiation_cases(dataframe: pd.DataFrame, variant: str = "v1") -> lis
             "days listed": row["days_listed"],
             "buyer message": row["buyer_message"],
             "offer": f"${row['offer']}",
+            # Pre-computed arithmetic (same for both models): Drex decides, plain code does the math.
+            "offer as % of list price": f"{100 * float(row['offer']) / float(row['list_price']):.1f}%",
+            "90% of list price": f"${0.9 * float(row['list_price']):.2f}",
         }
         descriptions = None
         if variant == "v2":

@@ -212,7 +212,7 @@ def load_csv(name: str):
 def make_price_options(prices: list) -> list:
     series = pd.Series(prices, dtype=float)
     options = []
-    for q in (0.25, 0.40, 0.50, 0.60, 0.75):
+    for q in (0.10, 0.30, 0.50, 0.70, 0.90):
         price = int(round(series.quantile(q)))
         while price in options:
             price += 1
@@ -381,7 +381,7 @@ with tab_sell:
                     m3.metric("Comps used", sell["n_comps"])
                     if result["probs"]:
                         st.altair_chart(prob_chart(result["probs"], result["answer"]), use_container_width=True)
-                    st.caption("Options = 25th / 40th / 50th / 60th / 75th percentile of recent sold comps.")
+                    st.caption("Options = 10th / 30th / 50th / 70th / 90th percentile of recent sold comps.")
 
                     st.subheader("3 · Listing (written by the LLM)")
                     b, t, s, c, cat = sell["item"]
@@ -435,6 +435,8 @@ with tab_negotiate:
         "days listed": days_listed,
         "buyer message": message,
         "offer": f"${offer:g}",
+        "offer as % of list price": f"{100 * offer / list_price:.1f}%",
+        "90% of list price": f"${0.9 * list_price:.2f}",
         # private hints for the mock only (stripped before real calls)
         "_list": list_price, "_floor": floor_price, "_offer": offer,
     }
