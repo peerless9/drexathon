@@ -29,6 +29,19 @@
           "errors": 0,
           "median_latency_s": 0.2532,
           "cost_per_1000_usd": 0.0165
+        },
+        "drex2": {
+          "accuracy_expected_price_pick": 0.25,
+          "mean_dollar_error": 35.41,
+          "model": "drex:nace-ai/drex-v2.0",
+          "n": 76,
+          "correct": 17,
+          "accuracy": 0.2237,
+          "accuracy_on_answered": 0.2237,
+          "invalid": 0,
+          "errors": 0,
+          "median_latency_s": 0.1893,
+          "cost_per_1000_usd": 0.0345
         }
       },
       "baseline_always_median": {
@@ -62,6 +75,17 @@
           "errors": 0,
           "median_latency_s": 0.2481,
           "cost_per_1000_usd": 0.0112
+        },
+        "drex2": {
+          "model": "drex:nace-ai/drex-v2.0",
+          "n": 30,
+          "correct": 30,
+          "accuracy": 1.0,
+          "accuracy_on_answered": 1.0,
+          "invalid": 0,
+          "errors": 0,
+          "median_latency_s": 0.1704,
+          "cost_per_1000_usd": 0.0225
         }
       }
     }

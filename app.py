@@ -35,7 +35,15 @@ DATA_DIR = REPO_ROOT / "bench" / "data"
 SUMMARY_PATH = REPO_ROOT / "bench" / "results" / "summary.json"
 
 DREX_COLOR = "#6C3BFF"
+DREX2_COLOR = "#B14BFF"  # Drex 2.0 (open weights, DeepInfra) - a lighter purple, same family
 LLM_COLOR = "#9AA0A6"
+
+# Short keys in summary.json -> names people read in the Results tab.
+MODEL_LABELS = {
+    "drex": "Drex Max (Nace)",
+    "drex2": "Drex 2.0 open weights (DeepInfra)",
+    "llm": "Claude Opus 5.5",
+}
 
 PRICING_QUESTION = "Which listing price is closest to what this item will actually sell for?"
 NEGOTIATION_QUESTION = "What should the seller do with this buyer's offer?"
@@ -306,7 +314,9 @@ def metric_bar(df: pd.DataFrame, field: str, title: str, fmt: str):
         x=alt.X(f"{field}:Q", title=None, axis=alt.Axis(format=fmt)),
         y=alt.Y("model:N", title=None),
         row=alt.Row("benchmark:N", title=None, header=alt.Header(labelFontWeight="bold")),
-        color=alt.Color("model:N", scale=alt.Scale(domain=["drex", "llm"], range=[DREX_COLOR, LLM_COLOR]),
+        color=alt.Color("model:N", scale=alt.Scale(
+                            domain=[MODEL_LABELS["drex"], MODEL_LABELS["drex2"], MODEL_LABELS["llm"]],
+                            range=[DREX_COLOR, DREX2_COLOR, LLM_COLOR]),
                         legend=None),
         tooltip=["benchmark", "model", alt.Tooltip(f"{field}:Q", format=fmt)],
     ).properties(title=title, height=60, width=300)
@@ -546,7 +556,7 @@ with tab_results:
         if keys:
             with st.expander("📈 Accuracy round by round", expanded=True):
                 short = {name: name.split(" · ")[0].lower() for name in existing}
-                table = pd.DataFrame([{"benchmark": k[0], "model": k[1],
+                table = pd.DataFrame([{"benchmark": k[0], "model": MODEL_LABELS.get(k[1], k[1]),
                                        **{short[n]: per_round[n][k] for n in existing}} for k in keys])
                 st.dataframe(table, hide_index=True, use_container_width=True, column_config={
                     short[n]: st.column_config.NumberColumn(format="percent") for n in existing})
@@ -576,6 +586,8 @@ with tab_results:
                       f"${agg.loc['drex', 'cost_per_1000_usd']:.4f} vs ${agg.loc['llm', 'cost_per_1000_usd']:.2f} per 1k",
                       delta_color="off")
 
+    # Readable model names for the table and charts (headline above still uses the short keys).
+    df["model"] = df["model"].map(MODEL_LABELS).fillna(df["model"])
     table = df[["benchmark", "model", "accuracy", "median_latency_ms", "cost_per_1000_usd"]
                + [c for c in ("invalid", "n") if c in df.columns]].copy()
     st.dataframe(table, hide_index=True, use_container_width=True, column_config={

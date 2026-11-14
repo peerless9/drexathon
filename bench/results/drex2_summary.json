@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-14T12:33:03",
+  "generated_at": "2026-11-14T12:40:39",
   "model": "deepinfra:nace-ai/drex-v2.0",
   "variants": {
     "v1": {
@@ -12,7 +12,7 @@
         "accuracy_on_answered": 0.2368,
         "invalid": 0,
         "errors": 0,
-        "median_latency_s": 0.2552,
+        "median_latency_s": 0.2255,
         "cost_per_1000_usd": 0.0306
       },
       "negotiation": {
@@ -23,7 +23,7 @@
         "accuracy_on_answered": 0.8667,
         "invalid": 0,
         "errors": 0,
-        "median_latency_s": 0.1223,
+        "median_latency_s": 0.1542,
         "cost_per_1000_usd": 0.0151
       }
     },
@@ -38,7 +38,7 @@
         "accuracy_on_answered": 0.2237,
         "invalid": 0,
         "errors": 0,
-        "median_latency_s": 0.1529,
+        "median_latency_s": 0.1893,
         "cost_per_1000_usd": 0.0345
       },
       "negotiation": {
@@ -49,7 +49,33 @@
         "accuracy_on_answered": 1.0,
         "invalid": 0,
         "errors": 0,
-        "median_latency_s": 0.1189,
+        "median_latency_s": 0.1704,
+        "cost_per_1000_usd": 0.0225
+      }
+    },
+    "v3": {
+      "pricing": {
+        "accuracy_expected_price_pick": 0.2105,
+        "mean_dollar_error": 34.92,
+        "model": "drex:nace-ai/drex-v2.0",
+        "n": 76,
+        "correct": 17,
+        "accuracy": 0.2237,
+        "accuracy_on_answered": 0.2237,
+        "invalid": 0,
+        "errors": 0,
+        "median_latency_s": 0.2696,
+        "cost_per_1000_usd": 0.0452
+      },
+      "negotiation": {
+        "model": "drex:nace-ai/drex-v2.0",
+        "n": 30,
+        "correct": 30,
+        "accuracy": 1.0,
+        "accuracy_on_answered": 1.0,
+        "invalid": 0,
+        "errors": 0,
+        "median_latency_s": 0.1907,
         "cost_per_1000_usd": 0.0225
       }
     }
