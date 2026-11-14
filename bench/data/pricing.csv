@@ -1,1 +1,41 @@
 id,category,brand,title,size,condition,sold_price,url
+J01,jeans,Levi's,VTG Levis 501 Jeans Mens 34x30 Blue Medium Wash Button Fly 100% Cotton,34x30,pre-owned,14.99,https://www.ebay.com/itm/298094832816
+J02,jeans,Levi's,Levis 501 Original Fit Mens Jeans 36x29 Medium Wash Blue Button Fly Straight Leg,36x29,pre-owned,33.99,https://www.ebay.com/itm/336892856192
+J03,jeans,Levi's,Levi's 501 Men's 38x29 Dark Wash Blue Denim Straight Leg Button Fly Jeans,38x29,pre-owned,29.95,https://www.ebay.com/itm/327452885463
+J04,jeans,Levi's,Levis 501 Original Fit White Oak Cone Denim Jeans Black 38x32 Mens Straight Leg,38x32,pre-owned,45.0,https://www.ebay.com/itm/117143087582
+J05,jeans,Levi's,VTG Levis 501 Jeans Mens 38x32 Blue Regular Straight Button Fly Made In USA 90s,38x32,pre-owned,60.0,https://www.ebay.com/itm/287723338489
+J06,jeans,Levi's,Levis 501 Men's Original Fit Jeans Meadow Moss Garment Dye 2221 Size 30x34,30x34,pre-owned,34.99,https://www.ebay.com/itm/168862787379
+J07,jeans,Levi's,Levis Premium Black 501 30x 30 Selvedge Jeans Men,30x30,new,59.99,https://www.ebay.com/itm/287719848283
+J08,jeans,Levi's,Levis Premium 501 Jeans Mens 34x32 Distressed Straight Leg Button Fly Denim,34x32,pre-owned,22.99,https://www.ebay.com/itm/820354675988
+J09,jeans,Levi's,Levis Jeans Mens 42x32 Blue 501 Button Fly Shrink To Fit Rigid Denim Pants NEW,42x32,new,49.99,https://www.ebay.com/itm/206651785616
+J10,jeans,Levi's,Men's LEVIS 501 28x30,28x30,pre-owned,22.0,https://www.ebay.com/itm/375416840537
+S01,sneakers,Nike,Nike Air Force 1 High 07 Shoes Mens 11 White Basketball Sneakers 315121-115,11,pre-owned,54.99,https://www.ebay.com/itm/307235281916
+S02,sneakers,Nike,Nike Mens Air Force 1 07 CW2288-111 White Leather Lace-Up Sneaker Shoes Size 10,10,pre-owned,14.99,https://www.ebay.com/itm/800906562140
+S03,sneakers,Nike,Nike Air Force 1 '07 Low Mens Size 12 White Athletic Lifestyle Shoes Sneakers,12,pre-owned,59.99,https://www.ebay.com/itm/307277655956
+S04,sneakers,Nike,Nike Air Force 1 Low Top Triple White '07 Mens White Sports Classic Sneaker,,new (other),69.99,https://www.ebay.com/itm/800364192935
+S05,sneakers,Nike,Nike Air Force 1 '07 Low Triple White Mens Sneakers CW2288-111 Brand New In Box,,new,59.99,https://www.ebay.com/itm/147649530319
+S06,sneakers,Nike,Nike Air Force 1 Low Top Triple White '07 Mens Womens Size Shoes Sneaker,,new,69.99,https://www.ebay.com/itm/298707918302
+S07,sneakers,Nike,Nike Air Force 1 '07 Triple White Mens Multi Sizes CW2288-111,,new,99.99,https://www.ebay.com/itm/358198750404
+S08,sneakers,Nike,Nike Air Force 1 '07 Shoes Mens Size 10 White Low Top Sneakers CW2288-111,10,pre-owned,54.98,https://www.ebay.com/itm/287359310330
+S09,sneakers,Nike,Nike Air Force 1 '07 LV8 Shoes Red Black White IB6847-600 Mens NEW,,new,104.31,https://www.ebay.com/itm/257438235708
+S10,sneakers,Nike,Nike Air Force 1 '07 Low Mens Size 9.5 White Athletic Lifestyle Shoes Sneakers,9.5,pre-owned,39.99,https://www.ebay.com/itm/366694289300
+F01,fleece,Patagonia,New Patagonia Mens Better Sweater Vest Stonewash Grey XL,XL,new,49.99,https://www.ebay.com/itm/960167478133
+F02,fleece,Patagonia,Patagonia Mens Better Sweater Full Zip Jacket Gray Heather XL Fleece 25527,XL,pre-owned,38.99,https://www.ebay.com/itm/137895728019
+F03,fleece,Patagonia,Patagonia Mens Medium Better Sweater Fleece Vest Full Zip Brown Corporate Logo,M,pre-owned,29.99,https://www.ebay.com/itm/336743316293
+F04,fleece,Patagonia,Patagonia Better Sweater Mens Large Black Jacket Full Zip Fleece Hiking,L,pre-owned,25.0,https://www.ebay.com/itm/960196211514
+F05,fleece,Patagonia,Patagonia Pullover Mens M Better Sweater Blue 1/4 Zip STY25522 EUC,M,pre-owned,42.49,https://www.ebay.com/itm/960150144722
+F06,fleece,Patagonia,Patagonia Better Sweater Full Zip Jacket Mens 2XL XXL 25528 Fleece Blue,XXL,pre-owned,59.99,https://www.ebay.com/itm/820267231113
+F07,fleece,Patagonia,Patagonia Better Sweater Fleece Pullover Mens 2XL Mountain Peak Navy Jacket,XXL,pre-owned,64.98,https://www.ebay.com/itm/287686982741
+F08,fleece,Patagonia,Patagonia Better Sweater Jacket Mens XXL Fleece 1/4 Zip Gray Navy Unique Design,XXL,pre-owned,54.99,https://www.ebay.com/itm/366761298340
+F09,fleece,Patagonia,Patagonia Mens Better Sweater Quarter-Zip Fleece Pullover XXL 2XL Blue Outdoor,XXL,pre-owned,45.95,https://www.ebay.com/itm/407359330291
+F10,fleece,Patagonia,Patagonia Better Sweater 1/4 Zip Fleece Pullover Mens XXL Royal Blue,XXL,pre-owned,55.0,https://www.ebay.com/itm/206598262208
+H01,hoodies,Carhartt,Carhartt Mens Rain Defender Loose Fit Hoodie Olive Green XL (1213),XL,new (other),35.0,https://www.ebay.com/itm/336788633072
+H02,hoodies,Carhartt,Carhartt Rain Defender Hoodie Quarter Zip Loose Fit Mens L Brown,L,pre-owned,41.99,https://www.ebay.com/itm/900084766147
+H03,hoodies,Carhartt,Carhartt Rain Defender Hoodie Mens XL Gray Full Zip Heavy Workwear TS0614-M,XL,pre-owned,29.09,https://www.ebay.com/itm/920107488075
+H04,hoodies,Carhartt,Carhartt FR Flame Resistant Loose Fit Midweight Full Zip Hoodie Mens Med Tall MT,MT,new,55.0,https://www.ebay.com/itm/157279338571
+H05,hoodies,Carhartt,Carhartt Hoodie Mens M Gray Pullover Fleece Hooded Pockets Lined Relaxed Fit,M,pre-owned,28.79,https://www.ebay.com/itm/389852370486
+H06,hoodies,Carhartt,Vintage Carhartt Hoodie Mens XXL Brown Chocolate Faded Distressed Pullover Fleece,XXL,pre-owned,18.24,https://www.ebay.com/itm/800024522994
+H07,hoodies,Carhartt,Carhartt Hoodie Mens L Grey Pullover Fleece Loose Fit Hooded Pocket Logo,L,pre-owned,17.99,https://www.ebay.com/itm/820289587336
+H08,hoodies,Carhartt,Carhartt Rain Defender Hoodie Mens Medium Blue 1/4 Zip Pullover Heavyweight Work,M,pre-owned,34.99,https://www.ebay.com/itm/940048640978
+H09,hoodies,Carhartt,Carhartt Rain Defender Rutland Thermal Lined Full Zip Hoodie Mens M Black 100632,M,pre-owned,54.99,https://www.ebay.com/itm/327453267596
+H10,hoodies,Carhartt,Carhartt Hoodie Mens XXLT Tall Blue Hooded Sweatshirt Jacket Loose Fit Relaxed,XXLT,pre-owned,22.99,https://www.ebay.com/itm/920128393528
