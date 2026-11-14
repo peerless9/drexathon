@@ -1,0 +1,10 @@
+{
+  "drex": {
+    "n": 1000,
+    "seconds": 26.85,
+    "decisions_per_second": 37.2,
+    "total_cost_usd": 0.012,
+    "accuracy": 1.0,
+    "errors": 0
+  }
+}

@@ -1,0 +1,1 @@
+{"chosen": "yes", "probs": {"yes": 0.9995513400133953, "no": 0.00044865998660473174}, "top_prob_or_conf": 0.9995513400133953, "latency_ms": 206.18458394892514, "input_tokens": 383, "output_tokens": 92, "cost_usd": 1.149e-05, "invalid": false, "error": null}

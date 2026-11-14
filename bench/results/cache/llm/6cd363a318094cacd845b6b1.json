@@ -1,0 +1,1 @@
+{"chosen": "accept", "probs": {"accept": 0.98, "counter": 0.01, "decline": 0.01}, "top_prob_or_conf": 0.98, "latency_ms": 1290.1685000397265, "input_tokens": 562, "output_tokens": 54, "cost_usd": 0.003328, "invalid": false, "error": null, "raw": "{\"answer\": \"accept\", \"confidence\": 98, \"probabilities\": {\"accept\": 0.98, \"counter\": 0.01, \"decline\": 0.01}}"}
