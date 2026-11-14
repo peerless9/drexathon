@@ -1,0 +1,1 @@
+{"chosen": "counter", "probs": {"accept": 0.0009439203438999603, "counter": 0.9973182099591676, "decline": 0.0017378696969323844}, "top_prob_or_conf": 0.9973182099591676, "latency_ms": 212.3030419461429, "input_tokens": 373, "output_tokens": 118, "cost_usd": 1.119e-05, "invalid": false, "error": null}

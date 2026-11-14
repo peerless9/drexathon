@@ -33,7 +33,7 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from agent import drex_client, llm_client  # noqa: E402
+from agent import drex2_client, drex_client, llm_client  # noqa: E402
 from bench import run_bench  # noqa: E402
 
 # ---------------------------------------------------------------- prices (per call cost)
@@ -43,6 +43,8 @@ LLM_PRICE_IN_PER_M, LLM_PRICE_OUT_PER_M = 4.00, 20.00
 # Drex Max v1.1: $0.03 / 1M input tokens, output free, no per-request fee
 #   source: console.nace.ai/docs/drex/reference/pricing, Nov 2026 (same as agent/drex_client.py)
 DREX_PRICE_IN_PER_M = 0.03
+# Drex 2.0 (open weights) on DeepInfra: $0.06 / 1M input and output tokens
+#   source: deepinfra.com/nace-ai/drex-v2.0 pricing, Nov 2026 (same as agent/drex_client.py BACKENDS)
 
 REPEATS = 3
 LLM_WORKERS, DREX_WORKERS = 4, 4
@@ -161,7 +163,8 @@ def _parse_llm(text: str, options: list):
             got = {}
             for option in options:
                 for k, v in raw.items():
-                    if str(k).strip().lower() == str(option).lower():
+                    key = str(k).strip().lower()
+                    if key == str(option).lower() or key.startswith(str(option).lower() + ":"):
                         got[option] = max(0.0, float(v))
             total = sum(got.values())
             if len(got) == len(options) and total > 0:
@@ -200,7 +203,22 @@ def call_llm(case: dict) -> dict:
             "output_tokens": 0, "cost_usd": 0.0, "invalid": True, "error": last_error}
 
 
-MODELS = {"drex": (call_drex, DREX_WORKERS), "llm": (call_llm, LLM_WORKERS)}
+def call_drex2(case: dict) -> dict:
+    for attempt in range(6):  # DeepInfra returns 429 "Model busy" under load: back off and retry
+        r = drex2_client.decide(case["facts"], case["question"], case["options"], case.get("descriptions"))
+        if "429" not in str(r.get("error") or ""):
+            break
+        time.sleep(2 * (attempt + 1))
+    probs = r.get("probabilities") or None
+    return {"chosen": r["answer"], "probs": probs,
+            "top_prob_or_conf": (max(probs.values()) if probs else None),
+            "latency_ms": (r["latency_s"] or 0) * 1000, "input_tokens": r.get("input_tokens", 0),
+            "output_tokens": r.get("output_tokens", 0), "cost_usd": r.get("cost_usd", 0.0),
+            "invalid": bool(r["invalid"]), "error": r.get("error")}
+
+
+MODELS = {"drex": (call_drex, DREX_WORKERS), "llm": (call_llm, LLM_WORKERS),
+          "drex2": (call_drex2, DREX_WORKERS)}
 
 
 def run_model(model: str, cases: list, repeats: dict) -> list:
@@ -246,6 +264,11 @@ def cmd_run(args):
         rows += run_model(model, cases, repeats)
     full = pd.DataFrame(rows)
     RESULTS.mkdir(parents=True, exist_ok=True)
+    previous = RESULTS / "decisions_full.csv"
+    if previous.exists() and not args.limit:  # keep other models' rows; replace only the ones re-run
+        old = pd.read_csv(previous, keep_default_na=False)
+        old = old[~old["model"].isin(full["model"].unique())]
+        full = pd.concat([old, full], ignore_index=True)
     full.to_csv(RESULTS / "decisions_full.csv", index=False)
     full[DECISION_COLUMNS].to_csv(RESULTS / "decisions.csv", index=False)
     print(f"Wrote {len(full)} decisions; errors={int((full['error'] != '').sum())}, "

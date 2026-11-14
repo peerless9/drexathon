@@ -1,0 +1,9 @@
+{
+  "speedup_x": 6.4,
+  "cost_ratio_x": 303.0,
+  "drex_auto_coverage_at_100pct": 1.0,
+  "threshold_used": 0.5,
+  "drex_accuracy_at_threshold": 1.0,
+  "note": "highest-coverage threshold where Drex is 100% accurate on the hard set",
+  "dataset": "hard (80 pre-registered messages x 3 repeats)"
+}

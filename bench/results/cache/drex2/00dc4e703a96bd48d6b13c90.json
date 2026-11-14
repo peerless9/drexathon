@@ -1,0 +1,1 @@
+{"chosen": "about typical", "probs": {"much lower": 0.0585, "a bit lower": 0.1242, "about typical": 0.4181, "a bit higher": 0.3678, "much higher": 0.0314}, "top_prob_or_conf": 0.4181, "latency_ms": 235.7085000257939, "input_tokens": 646, "output_tokens": 93, "cost_usd": 4.433999999999999e-05, "invalid": false, "error": null}

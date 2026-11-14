@@ -1,0 +1,17 @@
+{
+  "drex": {
+    "seconds": 3.84,
+    "n": 100,
+    "errors": 0
+  },
+  "llm": {
+    "seconds": 22.71,
+    "n": 100,
+    "errors": 0
+  },
+  "drex2": {
+    "seconds": 11.39,
+    "n": 100,
+    "errors": 0
+  }
+}
