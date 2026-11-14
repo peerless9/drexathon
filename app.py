@@ -559,6 +559,16 @@ input:focus, textarea:focus, [data-baseweb="input"]:focus-within, [data-baseweb=
 </style>
 """, unsafe_allow_html=True)
 
+# ------------------------------------------------------------- THEME SWITCH
+# "mono" = Levi's Figma design (black/white, sharp, blackletter logo), layered on top of the
+# neon CSS above. Set to "neon" to get the neon-dusk look back. Presentation only.
+UI_THEME = "mono"
+CHART = {"pick": "#FF2E88", "unpick": "#3A2A4F", "models": ["#FF2E88", "#FF8A3D", "#A59BB8"]}
+if UI_THEME == "mono":
+    from ui_theme import MONO_CHART, MONO_CSS
+    st.markdown(MONO_CSS, unsafe_allow_html=True)
+    CHART = MONO_CHART
+
 # Background layers (decorative, fixed, behind content, never intercept clicks)
 st.markdown('<div class="bg-layer"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>'
             '<div class="sun"></div><div class="grid-floor"></div><div class="scan"></div></div>',
@@ -582,7 +592,7 @@ def prob_chart(probs: dict, pick: str, height: int = 220):
     bars = alt.Chart(df).mark_bar(cornerRadiusEnd=6, height=22).encode(
         y=alt.Y("option:N", sort=list(probs.keys()), title=None),
         x=alt.X("probability:Q", axis=alt.Axis(format="%", tickCount=5), scale=alt.Scale(domain=[0, 1]), title=None),
-        color=alt.condition("datum.picked", alt.value("#FF2E88"), alt.value("#3A2A4F")),
+        color=alt.condition("datum.picked", alt.value(CHART["pick"]), alt.value(CHART["unpick"])),
         tooltip=["option", alt.Tooltip("probability:Q", format=".1%")],
     )
     text = alt.Chart(df).mark_text(align="left", dx=6, color="#ECECF1", font="Inter", fontSize=12).encode(
@@ -591,7 +601,7 @@ def prob_chart(probs: dict, pick: str, height: int = 220):
 
 
 MODEL_COLORS = alt.Scale(domain=[MODEL_LABELS["drex"], MODEL_LABELS["drex2"], MODEL_LABELS["llm"]],
-                         range=["#FF2E88", "#FF8A3D", "#A59BB8"])
+                         range=CHART["models"])
 
 
 def metric_bar(df: pd.DataFrame, field: str, title: str, fmt: str):
