@@ -1,0 +1,1 @@
+{"chosen": "no", "probs": {"yes": 0.03, "no": 0.97}, "top_prob_or_conf": 0.97, "latency_ms": 1493.8027079915628, "input_tokens": 583, "output_tokens": 43, "cost_usd": 0.003192, "invalid": false, "error": null, "raw": "{\"answer\": \"no\", \"confidence\": 97, \"probabilities\": {\"yes\": 0.03, \"no\": 0.97}}"}

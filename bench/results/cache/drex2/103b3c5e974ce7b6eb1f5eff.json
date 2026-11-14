@@ -1,0 +1,1 @@
+{"chosen": "decline - legit", "probs": {"accept - legit": 0.0, "counter - legit": 0.0012, "decline - legit": 0.831, "accept - scam": 0.0009, "counter - scam": 0.009, "decline - scam": 0.1579}, "top_prob_or_conf": 0.831, "latency_ms": 347.93979104142636, "input_tokens": 466, "output_tokens": 108, "cost_usd": 3.4439999999999996e-05, "invalid": false, "error": null}
