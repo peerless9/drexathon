@@ -1,8 +1,9 @@
 {
-  "generated_at": "2026-11-14T11:53:31",
+  "generated_at": "2026-11-14T11:59:54",
   "benchmarks": {
     "negotiation": {
       "data_file": "negotiation.csv",
+      "n_cases": 30,
       "is_sample_data": false,
       "models": {
         "llm": {
@@ -13,8 +14,8 @@
           "accuracy_on_answered": 1.0,
           "invalid": 0,
           "errors": 0,
-          "median_latency_s": 1.4143,
-          "cost_per_1000_usd": 2.1959
+          "median_latency_s": 1.4676,
+          "cost_per_1000_usd": 2.2265
         },
         "drex": {
           "model": "drex:drex-max-v1.1",
@@ -24,45 +25,47 @@
           "accuracy_on_answered": 0.9333,
           "invalid": 0,
           "errors": 0,
-          "median_latency_s": 0.2464,
+          "median_latency_s": 0.2568,
           "cost_per_1000_usd": 0.0075
         }
       }
     },
     "pricing": {
       "data_file": "pricing.csv",
+      "n_cases": 76,
       "is_sample_data": false,
       "models": {
-        "drex": {
-          "mean_dollar_error": 12.03,
-          "model": "drex:drex-max-v1.1",
-          "n": 40,
-          "correct": 15,
-          "accuracy": 0.375,
-          "accuracy_on_answered": 0.375,
-          "invalid": 0,
-          "errors": 0,
-          "median_latency_s": 0.2565,
-          "cost_per_1000_usd": 0.0158
-        },
         "llm": {
-          "mean_dollar_error": 11.39,
+          "mean_dollar_error": 31.79,
           "model": "anthropic:claude-opus-5-5",
-          "n": 40,
-          "correct": 17,
-          "accuracy": 0.425,
-          "accuracy_on_answered": 0.425,
+          "n": 76,
+          "correct": 32,
+          "accuracy": 0.4211,
+          "accuracy_on_answered": 0.4211,
           "invalid": 0,
           "errors": 0,
-          "median_latency_s": 2.0251,
-          "cost_per_1000_usd": 5.2517
+          "median_latency_s": 1.9667,
+          "cost_per_1000_usd": 4.7924
+        },
+        "drex": {
+          "mean_dollar_error": 36.73,
+          "model": "drex:drex-max-v1.1",
+          "n": 76,
+          "correct": 17,
+          "accuracy": 0.2237,
+          "accuracy_on_answered": 0.2237,
+          "invalid": 0,
+          "errors": 0,
+          "median_latency_s": 0.2327,
+          "cost_per_1000_usd": 0.0145
         }
       },
       "baseline_always_median": {
-        "accuracy": 0.1,
-        "mean_dollar_error": 14.17
+        "accuracy": 0.0658,
+        "mean_dollar_error": 36.34
       }
     }
   },
-  "llm_model": "anthropic:claude-opus-5-5"
+  "llm_model": "anthropic:claude-opus-5-5",
+  "variant": "v1"
 }
