@@ -165,9 +165,15 @@ def _strip_private(facts):
     return facts
 
 
+DREX_ENGINE = {"engine": "drex"}  # set from the sidebar: "drex" (Drex Max, Nace) or "drex2" (Drex 2.0, DeepInfra)
+
+
 def drex_decide(facts, question, options) -> dict:
     if USE_MOCK:
         return _normalize(mock_drex_decide(facts, question, options))
+    if DREX_ENGINE["engine"] == "drex2":
+        from agent import drex2_client
+        return _normalize(drex2_client.decide(_strip_private(facts), question, options))
     return _normalize(_load_real_clients()[0](_strip_private(facts), question, options))
 
 
@@ -281,149 +287,282 @@ st.set_page_config(page_title="ThriftAgent · Drex vs the Giants", page_icon="�
 
 RESULTS_DIR = REPO_ROOT / "bench" / "results"
 ASSETS_DIR = REPO_ROOT / "assets"
-ACTION_COLOR = {"accept": "#34D399", "counter": "#FBBF24", "decline": "#FB7185"}
+ACTION_COLOR = {"accept": "#19E3D1", "counter": "#FFC857", "decline": "#FF4D6D"}
 ACTION_EMOJI = {"accept": "✅ ACCEPT", "counter": "🔁 COUNTER", "decline": "⛔ DECLINE"}
 ACTION_WORD = {"accept": "ACCEPT", "counter": "COUNTER", "decline": "DECLINE"}
 
 # ------------------------------------------------------------- STYLE (single block)
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700;800&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
+/* ===================================================== 1. PALETTE (neon dusk) */
 :root {
-  --bg: #0B0B10; --panel: rgba(255,255,255,.035); --panel-2: rgba(255,255,255,.06);
-  --line: rgba(255,255,255,.09); --text: #ECECF1; --muted: #8B8B99;
-  --drex: #6C3BFF; --drex-2: #B14BFF; --llm: #9AA0A6;
-  --mint: #34D399; --amber: #FBBF24; --coral: #FB7185;
+  --bg: #12061F; --bg-2: #1B0B33; --panel: rgba(18,6,31,.72); --panel-2: rgba(255,255,255,.07);
+  --line: rgba(255,255,255,.12); --text: #FFF4F8; --muted: #B8ACCB;
+  --pink: #FF2E88; --tangerine: #FF8A3D; --gold: #FFC857; --teal: #19E3D1; --coral: #FF4D6D;
+  --lav: #A59BB8; --violet: #7B5CFF;
+  --sunset: linear-gradient(90deg, #FF2E88, #FF8A3D, #FFC857, #FF8A3D, #FF2E88);
+  --ocean: linear-gradient(90deg, #19E3D1, #7B5CFF);
+  --display: 'Unbounded', 'Space Grotesk', sans-serif;
 }
-html, body, [class*="css"], .stMarkdown, .stText, p, label, input, textarea { font-family: 'Inter', sans-serif; }
-.stApp {
-  background:
-    radial-gradient(1200px 600px at 85% -10%, rgba(108,59,255,.22), transparent 60%),
-    radial-gradient(900px 500px at -10% 10%, rgba(177,75,255,.10), transparent 60%),
-    var(--bg);
-}
-.block-container { padding-top: 1.6rem; max-width: 1280px; }
-h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif !important; letter-spacing: -.02em; }
+html, body, [class*="css"], .stMarkdown, p, label, input, textarea { font-family: 'Inter', sans-serif; }
+h1, h2, h3, h4 { font-family: var(--display) !important; letter-spacing: -.02em; }
 [data-testid="stHeader"] { background: transparent; }
 
-/* tabs */
-.stTabs [data-baseweb="tab-list"] { gap: 6px; border-bottom: 1px solid var(--line); }
-.stTabs [data-baseweb="tab"] {
-  font-family: 'Space Grotesk', sans-serif; font-size: 1.05rem; font-weight: 600; padding: 10px 18px;
-  border-radius: 12px 12px 0 0; color: var(--muted);
+/* ===================================================== 2. LIVING BACKGROUND */
+.stApp {
+  background: linear-gradient(120deg, #12061F, #2A0B3D, #3B0D3A, #1B0B33, #0E1A3A, #12061F);
+  background-size: 400% 400%; animation: drift 26s ease-in-out infinite;
 }
-.stTabs [aria-selected="true"] { color: var(--text) !important; background: var(--panel-2); }
-.stTabs [data-baseweb="tab-highlight"] { background: linear-gradient(90deg, var(--drex), var(--drex-2)); height: 3px; }
+@keyframes drift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.bg-layer { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.orb { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .55; }
+.orb.o1 { width: 520px; height: 520px; background: #FF2E88; top: -160px; right: -120px; animation: float1 22s ease-in-out infinite; }
+.orb.o2 { width: 460px; height: 460px; background: #FF8A3D; bottom: -200px; left: -140px; opacity: .35; animation: float2 28s ease-in-out infinite; }
+.orb.o3 { width: 380px; height: 380px; background: #19E3D1; top: 40%; left: 55%; opacity: .18; animation: float3 32s ease-in-out infinite; }
+@keyframes float1 { 50% { transform: translate(-140px, 120px) scale(1.15); } }
+@keyframes float2 { 50% { transform: translate(180px, -120px) scale(1.2); } }
+@keyframes float3 { 50% { transform: translate(-220px, -80px) scale(.85); } }
+.grid-floor { position: absolute; left: -50%; right: -50%; bottom: -10%; height: 46%;
+  background-image: linear-gradient(rgba(255,46,136,.45) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,46,136,.45) 1px, transparent 1px);
+  background-size: 64px 64px; transform: perspective(420px) rotateX(62deg); transform-origin: top;
+  mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 70%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 70%, transparent);
+  animation: grid-run 2.4s linear infinite; opacity: .55; }
+@keyframes grid-run { to { background-position: 0 64px, 0 0; } }
+.sun { position: absolute; left: 50%; bottom: 30%; width: 340px; height: 340px; margin-left: -170px; border-radius: 50%;
+  background: linear-gradient(#FFC857, #FF8A3D 45%, #FF2E88);
+  mask-image: repeating-linear-gradient(to bottom, #000 0 18px, transparent 18px 24px);
+  -webkit-mask-image: repeating-linear-gradient(to bottom, #000 0 18px, transparent 18px 24px);
+  opacity: .16; filter: blur(1px); animation: sunpulse 6s ease-in-out infinite; }
+@keyframes sunpulse { 50% { opacity: .24; transform: translateY(-8px); } }
+.scan { position: absolute; inset: 0;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,.025) 0 1px, transparent 1px 3px);
+  animation: scanroll 8s linear infinite; }
+@keyframes scanroll { to { background-position: 0 300px; } }
+.block-container { position: relative; z-index: 1; padding-top: 1.4rem; max-width: 1280px; }
+[data-testid="stSidebar"] { background: rgba(18,6,31,.92); }
 
-/* buttons + inputs */
-.stButton > button[kind="primary"] {
-  background: linear-gradient(90deg, var(--drex), var(--drex-2)); border: 0; border-radius: 14px;
-  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.05rem; padding: .7rem 1rem;
-  box-shadow: 0 8px 30px rgba(108,59,255,.35);
-}
-.stButton > button[kind="primary"]:hover { filter: brightness(1.08); }
-[data-testid="stFileUploaderDropzone"] {
-  background: var(--panel); border: 1.5px dashed rgba(124,77,255,.45); border-radius: 18px; min-height: 150px;
-}
-
-/* hero */
-.hero { display: grid; grid-template-columns: 1.6fr 1fr; gap: 28px; align-items: center; margin-bottom: 18px; }
-.eyebrow { font-family: 'Space Grotesk'; font-size: .78rem; letter-spacing: .22em; text-transform: uppercase;
-           color: #B9A6FF; margin-bottom: 8px; }
-.hero h1 { font-size: 3.4rem; line-height: 1.02; margin: 0 0 10px; font-weight: 700; }
-.hero h1 .grad { background: linear-gradient(90deg, #A78BFA, #E879F9); -webkit-background-clip: text; color: transparent; }
-.hero .tag { font-size: 1.15rem; color: #C9C9D6; margin: 0 0 18px; }
+/* ===================================================== 3. HERO */
+.hero { display: grid; grid-template-columns: 1.6fr 1fr; gap: 28px; align-items: center; margin-bottom: 10px; }
+.eyebrow { font-family: var(--display); font-size: .72rem; letter-spacing: .3em; text-transform: uppercase; color: var(--gold);
+           animation: fadeUp .7s ease both; }
+.hero h1 { font-family: var(--display); font-size: 4.4rem; line-height: 1; margin: 8px 0 12px; font-weight: 800; }
+.hero h1 .ltr { display: inline-block; background: var(--sunset); background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: letterIn .7s cubic-bezier(.2,.9,.3,1.3) both, sweep 6s linear infinite; }
+@keyframes letterIn { from { transform: translateY(60%) rotate(8deg); opacity: 0; filter: blur(6px); } to { transform: none; opacity: 1; filter: none; } }
+@keyframes sweep { to { background-position: 300% 0; } }
+.hero .tag { font-size: 1.2rem; color: #E9DDF5; margin: 0 0 18px; animation: fadeUp .8s ease .9s both; }
+.hero .tag b { color: #fff; border-right: 2px solid var(--pink); padding-right: 4px; animation: caret 1s steps(1) infinite; }
+@keyframes caret { 50% { border-color: transparent; } }
+@keyframes fadeUp { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
 .chips { display: flex; flex-wrap: wrap; gap: 10px; }
-.chip { font-family: 'Space Grotesk'; font-weight: 600; font-size: 1rem; padding: 9px 14px; border-radius: 999px;
-        background: var(--panel-2); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
-.chip b { color: #C4B5FD; }
-.hero-art { height: 210px; border-radius: 22px; border: 1px solid var(--line); overflow: hidden; position: relative;
-            background: radial-gradient(circle at 30% 30%, rgba(177,75,255,.55), transparent 55%),
-                        radial-gradient(circle at 75% 70%, rgba(108,59,255,.65), transparent 55%), #12121A; }
-.hero-art .ph { position: absolute; inset: 0; display: grid; place-items: center; font-size: 4.5rem; }
-.hero-art .ph small { position: absolute; bottom: 12px; font-size: .75rem; color: rgba(255,255,255,.55);
-                      letter-spacing: .1em; text-transform: uppercase; }
+.chip { position: relative; overflow: hidden; font-family: 'Space Grotesk'; font-weight: 700; font-size: 1.05rem; padding: 10px 16px;
+  border-radius: 999px; background: rgba(18,6,31,.75); border: 1px solid rgba(255,46,136,.45);
+  font-variant-numeric: tabular-nums; box-shadow: 0 0 22px rgba(255,46,136,.18);
+  animation: popIn .6s cubic-bezier(.2,1.4,.4,1) both; }
+.chip:nth-child(1) { animation-delay: 1.1s; } .chip:nth-child(2) { animation-delay: 1.3s; } .chip:nth-child(3) { animation-delay: 1.5s; }
+.chip b { color: var(--gold); }
+.chip::after { content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+  background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
+  animation: shine 4.5s ease-in-out 2.2s infinite; }
+@keyframes shine { 0% { transform: translateX(-120%); } 30%,100% { transform: translateX(120%); } }
+@keyframes popIn { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+.hero-art { height: 220px; border-radius: 24px; border: 1px solid rgba(255,46,136,.4); overflow: hidden; position: relative;
+  background: radial-gradient(circle at 30% 30%, rgba(255,46,136,.6), transparent 55%),
+              radial-gradient(circle at 75% 75%, rgba(255,138,61,.55), transparent 55%), #1B0B33;
+  box-shadow: 0 0 60px rgba(255,46,136,.25); animation: fadeUp .9s ease .4s both, bob 7s ease-in-out 1.3s infinite; }
+@keyframes bob { 50% { transform: translateY(-8px) rotate(-.6deg); } }
+.hero-art .ph { position: absolute; inset: 0; display: grid; place-items: center; font-size: 4.8rem; }
+.hero-art .ph small { position: absolute; bottom: 12px; font-size: .72rem; color: rgba(255,255,255,.6); letter-spacing: .12em; text-transform: uppercase; }
+.ticker { position: relative; overflow: hidden; white-space: nowrap; margin: 14px 0 18px; padding: 10px 0;
+  border-top: 1px solid rgba(255,46,136,.35); border-bottom: 1px solid rgba(255,46,136,.35); background: rgba(18,6,31,.75); }
+.ticker .track { display: inline-block; animation: marquee 32s linear infinite; font-family: 'Space Grotesk'; font-weight: 700;
+  letter-spacing: .08em; font-size: .95rem; font-variant-numeric: tabular-nums; }
+.ticker .track span { margin: 0 22px; } .ticker .up { color: var(--teal); } .ticker .hot { color: var(--gold); } .ticker .dim { color: var(--lav); }
+@keyframes marquee { to { transform: translateX(-50%); } }
 
-/* generic cards */
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 22px 24px;
-        backdrop-filter: blur(8px); }
-.label { font-family: 'Space Grotesk'; font-size: .78rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
-.section-title { font-family: 'Space Grotesk'; font-size: 1.5rem; font-weight: 700; margin: 6px 0 2px; }
+/* ===================================================== 4. TABS */
+.stTabs [data-baseweb="tab-list"] { gap: 6px; border-bottom: 1px solid var(--line); }
+.stTabs [data-baseweb="tab"] { font-family: var(--display); font-size: .95rem; font-weight: 700; padding: 10px 18px;
+  border-radius: 12px 12px 0 0; color: var(--muted); transition: color .25s, background .25s; }
+.stTabs [data-baseweb="tab"]:hover { color: #fff; background: rgba(255,46,136,.08); }
+.stTabs [aria-selected="true"] { color: #fff !important; background: rgba(255,46,136,.12); }
+.stTabs [data-baseweb="tab-highlight"] { background: var(--sunset); background-size: 300% 100%; height: 3px;
+  animation: sweep 3s linear infinite; transition: all .35s cubic-bezier(.2,.9,.3,1.2) !important; }
+.stTabs [data-baseweb="tab-panel"] { animation: fadeUp .45s ease both; }
+
+/* ===================================================== 5. RACE */
+.section-title { font-family: var(--display); font-size: 1.6rem; font-weight: 700; margin: 6px 0 2px; }
 .section-sub { color: var(--muted); margin-bottom: 14px; }
+.label { font-family: 'Space Grotesk'; font-size: .78rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 22px 24px; backdrop-filter: blur(12px); }
+.chat { display: flex; gap: 12px; align-items: flex-start; margin: 10px 0 18px; animation: slideIn .5s cubic-bezier(.2,.9,.3,1.2) both; }
+@keyframes slideIn { from { transform: translateX(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
+.avatar { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 1.3rem; flex: none;
+  background: var(--ocean); box-shadow: 0 0 18px rgba(25,227,209,.4); }
+.bubble { background: rgba(28,12,48,.92); border: 1px solid rgba(25,227,209,.35); border-radius: 4px 20px 20px 20px; padding: 14px 18px;
+  font-size: 1.15rem; max-width: 820px; backdrop-filter: blur(10px); }
+.bubble .dots { display: inline-flex; gap: 4px; margin-right: 8px; vertical-align: middle; }
+.bubble .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: blink 1.2s infinite; }
+.bubble .dots i:nth-child(2) { animation-delay: .2s; } .bubble .dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%,80%,100% { opacity: .2; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.bubble .meta { color: var(--muted); font-size: .86rem; margin-top: 6px; font-variant-numeric: tabular-nums; }
 
-/* buyer chat bubble */
-.chat { display: flex; gap: 12px; align-items: flex-start; margin: 8px 0 18px; }
-.avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 1.2rem;
-          background: var(--panel-2); border: 1px solid var(--line); flex: none; }
-.bubble { background: #1C1C26; border: 1px solid var(--line); border-radius: 4px 18px 18px 18px; padding: 14px 18px;
-          font-size: 1.12rem; max-width: 820px; }
-.bubble .meta { color: var(--muted); font-size: .85rem; margin-top: 6px; font-variant-numeric: tabular-nums; }
-
-/* race cards */
-.race { position: relative; border-radius: 22px; padding: 22px 26px; min-height: 210px; border: 1px solid var(--line);
-        background: var(--panel); overflow: hidden; }
-.race.drex { border: 1.5px solid rgba(124,77,255,.75);
-             background: linear-gradient(160deg, rgba(108,59,255,.20), rgba(177,75,255,.06) 60%, rgba(255,255,255,.02)); }
-.race.drex.first { animation: pulse 1.6s ease-out 2; }
-@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(124,77,255,.65); } 100% { box-shadow: 0 0 0 26px rgba(124,77,255,0); } }
+.race { position: relative; border-radius: 24px; padding: 22px 26px 24px; min-height: 230px; overflow: hidden;
+  background: rgba(18,6,31,.82); border: 1px solid var(--line); backdrop-filter: blur(14px);
+  transition: transform .3s ease, box-shadow .3s ease; }
+.race:hover { transform: translateY(-3px) rotate(-.3deg); }
+.race.drex { border: 1.5px solid rgba(255,46,136,.75);
+  background: linear-gradient(160deg, rgba(255,46,136,.22), rgba(255,138,61,.08) 55%, rgba(18,6,31,.9)); }
+.race.llm { filter: saturate(.75); }
+.race.drex.first { animation: flash .5s ease, scalePop .6s cubic-bezier(.2,1.6,.4,1), ring 1.8s ease-out .2s 3; }
+@keyframes flash { 0% { background-color: rgba(255,255,255,.35); } 100% { background-color: transparent; } }
+@keyframes scalePop { 0% { transform: scale(1); } 45% { transform: scale(1.045); } 100% { transform: scale(1); } }
+@keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(255,46,136,.75), 0 0 40px rgba(255,46,136,.35); }
+                  100% { box-shadow: 0 0 0 30px rgba(255,46,136,0), 0 0 40px rgba(255,46,136,.35); } }
+.race.drex.done { box-shadow: 0 0 40px rgba(255,46,136,.3); }
 .race .who { display: flex; justify-content: space-between; align-items: center; }
-.race .name { font-family: 'Space Grotesk'; font-weight: 700; letter-spacing: .14em; font-size: .9rem; }
-.race.drex .name { color: #C4B5FD; } .race.llm .name { color: var(--llm); }
-.badge { font-size: .72rem; font-weight: 700; letter-spacing: .1em; padding: 4px 10px; border-radius: 999px;
-         background: rgba(124,77,255,.25); color: #DDD6FE; border: 1px solid rgba(124,77,255,.5); }
-.action { font-family: 'Space Grotesk'; font-weight: 700; font-size: 3.6rem; line-height: 1; margin: 18px 0 12px; letter-spacing: -.02em; }
-.timer { font-family: 'Space Grotesk'; font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.timer small { font-size: .95rem; color: var(--muted); font-weight: 500; margin-left: 10px; }
-.pill { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: .82rem; font-weight: 600; }
-.ok { background: rgba(52,211,153,.14); color: #6EE7B7; border: 1px solid rgba(52,211,153,.35); }
-.bad { background: rgba(251,113,133,.14); color: #FDA4AF; border: 1px solid rgba(251,113,133,.35); }
-.thinking { font-family: 'Space Grotesk'; font-size: 2.4rem; font-weight: 700; margin: 26px 0 14px;
-            background: linear-gradient(90deg, #4B4B58 0%, #D4D4DE 50%, #4B4B58 100%); background-size: 200% 100%;
-            -webkit-background-clip: text; color: transparent; animation: shimmer 1.3s linear infinite; }
+.race .name { font-family: var(--display); font-weight: 700; letter-spacing: .14em; font-size: .85rem; }
+.race.drex .name { color: #FF8FC0; } .race.llm .name { color: var(--lav); }
+.badge { font-family: 'Space Grotesk'; font-size: .74rem; font-weight: 700; letter-spacing: .1em; padding: 5px 11px; border-radius: 999px;
+  background: var(--sunset); color: #1B0B33; animation: dropIn .6s cubic-bezier(.2,1.6,.4,1) .15s both; }
+@keyframes dropIn { from { transform: translateY(-26px) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.action { position: relative; display: inline-block; font-family: var(--display); font-weight: 800; font-size: 3.6rem; line-height: 1;
+  margin: 20px 0 12px; letter-spacing: -.02em; animation: slam .55s cubic-bezier(.2,1.5,.4,1) both; }
+@keyframes slam { 0% { transform: scale(2.2); opacity: 0; filter: blur(8px); } 60% { transform: scale(.94); opacity: 1; filter: none; } 100% { transform: none; } }
+.action.glitch::before, .action.glitch::after { content: attr(data-text); position: absolute; inset: 0; pointer-events: none; }
+.action.glitch::before { color: var(--teal); mix-blend-mode: screen; animation: gl1 .9s steps(2) .1s 2 both; }
+.action.glitch::after { color: var(--pink); mix-blend-mode: screen; animation: gl2 .9s steps(2) .1s 2 both; }
+@keyframes gl1 { 0% { transform: translate(-4px,2px); clip-path: inset(0 0 60% 0); } 50% { transform: translate(3px,-2px); clip-path: inset(40% 0 20% 0); }
+                 100% { transform: none; clip-path: inset(0 0 100% 0); } }
+@keyframes gl2 { 0% { transform: translate(4px,-2px); clip-path: inset(50% 0 0 0); } 50% { transform: translate(-3px,2px); clip-path: inset(10% 0 60% 0); }
+                 100% { transform: none; clip-path: inset(100% 0 0 0); } }
+.timer { display: inline-block; font-family: 'Space Grotesk'; font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  padding: 4px 12px; border-radius: 10px; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.08); }
+.race.drex .timer { color: #FFD9E8; text-shadow: 0 0 12px rgba(255,46,136,.8); }
+.race.llm .timer { color: #D9D2E6; }
+.timer small { font-size: .85rem; color: var(--muted); font-weight: 500; margin-left: 10px; text-shadow: none; }
+.pill { display: inline-block; padding: 5px 12px; border-radius: 999px; font-size: .84rem; font-weight: 700; animation: popIn .5s ease .25s both; }
+.ok { background: rgba(25,227,209,.14); color: #7FF5EA; border: 1px solid rgba(25,227,209,.45); }
+.bad { background: rgba(255,77,109,.16); color: #FFB3C1; border: 1px solid rgba(255,77,109,.5); }
+.progress { height: 6px; border-radius: 6px; margin: 16px 0 18px; overflow: hidden; background: rgba(255,255,255,.06); }
+.progress i { display: block; height: 100%; width: 100%;
+  background: repeating-linear-gradient(45deg, rgba(255,255,255,.0) 0 10px, rgba(255,255,255,.25) 10px 20px), var(--sunset);
+  background-size: 28px 28px, 300% 100%; animation: stripes .6s linear infinite, sweep 2s linear infinite; }
+.race.llm .progress i { background: repeating-linear-gradient(45deg, transparent 0 10px, rgba(255,255,255,.18) 10px 20px), #6E6582;
+  background-size: 28px 28px, 100% 100%; animation: stripes 1.4s linear infinite; }
+@keyframes stripes { to { background-position: 28px 0, 0 0; } }
+.scanner { position: absolute; left: 0; right: 0; top: 0; height: 40%; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(255,46,136,.28), transparent); animation: scanY .9s ease-in-out infinite alternate; }
+@keyframes scanY { from { transform: translateY(-40%); } to { transform: translateY(220%); } }
+.thinking { font-family: var(--display); font-size: 2.3rem; font-weight: 800;
+  background: linear-gradient(90deg, #4B3E5E 0%, #F3E8FF 50%, #4B3E5E 100%); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 1.2s linear infinite; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-.idle { font-family: 'Space Grotesk'; font-size: 2.4rem; color: #3A3A46; margin: 26px 0 14px; font-weight: 700; }
+.idle { font-family: var(--display); font-size: 2.3rem; color: rgba(255,255,255,.18); margin: 24px 0 14px; font-weight: 800; }
 
-/* banner */
-.banner { margin: 20px 0 8px; border-radius: 22px; padding: 26px; text-align: center; color: white;
-          background: linear-gradient(100deg, #5B2BFF, #9B4BFF 55%, #D946EF); box-shadow: 0 18px 50px rgba(108,59,255,.35);
-          animation: rise .6s cubic-bezier(.2,.9,.3,1.2); }
-@keyframes rise { from { transform: translateY(10px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
-.banner .big { font-family: 'Space Grotesk'; font-size: 2.6rem; font-weight: 700; letter-spacing: -.02em; }
-.banner small { display: block; font-size: 1.02rem; opacity: .9; margin-top: 4px; font-variant-numeric: tabular-nums; }
-.scam { margin-top: 12px; border-radius: 16px; padding: 14px 18px; font-weight: 600; font-size: 1.05rem;
-        background: rgba(251,113,133,.12); border: 1px solid rgba(251,113,133,.45); color: #FECDD3; }
-.policy { border-radius: 16px; padding: 14px 18px; background: var(--panel); border: 1px solid var(--line); }
+.banner { position: relative; overflow: hidden; margin: 22px 0 10px; border-radius: 24px; padding: 28px; text-align: center; color: #1B0B33;
+  background: var(--sunset); background-size: 300% 100%; box-shadow: 0 20px 70px rgba(255,46,136,.45);
+  animation: burst .7s cubic-bezier(.2,1.5,.4,1) both, sweep 5s linear infinite; }
+@keyframes burst { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.03); opacity: 1; } 100% { transform: none; } }
+.banner::after { content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+  background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,.65) 50%, transparent 65%); animation: shine 3s ease-in-out .5s infinite; }
+.banner .big { position: relative; z-index: 1; font-family: var(--display); font-size: 2.6rem; font-weight: 800; letter-spacing: -.02em; }
+.banner small { position: relative; z-index: 1; display: block; font-size: 1.05rem; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.spark { position: absolute; width: 8px; height: 8px; border-radius: 2px; z-index: 1; opacity: 0; animation: sparkle 1.4s ease-out both; }
+@keyframes sparkle { 0% { transform: translate(0,0) rotate(0) scale(.4); opacity: 1; }
+                     100% { transform: translate(var(--dx), var(--dy)) rotate(260deg) scale(1); opacity: 0; } }
+.scam { position: relative; overflow: hidden; margin-top: 12px; border-radius: 16px; padding: 16px 18px 16px 22px; font-weight: 700; font-size: 1.05rem;
+  background: rgba(255,77,109,.16); border: 1.5px solid rgba(255,77,109,.7); color: #FFE1E7; animation: shake .5s ease both; }
+.scam::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 10px;
+  background: repeating-linear-gradient(45deg, #FF4D6D 0 8px, #FFC857 8px 16px); background-size: 22px 22px; animation: stripes .8s linear infinite; }
+@keyframes shake { 0%,100% { transform: none; } 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
+.policy { border-radius: 18px; padding: 14px 18px; background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(10px); }
 
-/* KPI tiles */
-.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 8px 0 18px; }
-.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 18px 20px; }
-.kpi.hot { background: linear-gradient(160deg, rgba(108,59,255,.22), rgba(255,255,255,.02)); border-color: rgba(124,77,255,.5); }
-.kpi .v { font-family: 'Space Grotesk'; font-size: 2.5rem; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+/* ===================================================== 6. RESULTS */
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 8px 0 18px; perspective: 900px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 18px 20px; backdrop-filter: blur(12px);
+  animation: flipIn .7s cubic-bezier(.2,1.2,.4,1) both; transition: transform .3s; }
+.kpi:hover { transform: translateY(-4px); }
+.kpi:nth-child(1) { animation-delay: .05s; } .kpi:nth-child(2) { animation-delay: .2s; } .kpi:nth-child(3) { animation-delay: .35s; } .kpi:nth-child(4) { animation-delay: .5s; }
+@keyframes flipIn { from { transform: rotateX(-70deg) translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+.kpi.hot { background: linear-gradient(160deg, rgba(255,46,136,.25), rgba(255,138,61,.08) 60%, rgba(18,6,31,.85)); border-color: rgba(255,46,136,.6);
+  box-shadow: 0 0 30px rgba(255,46,136,.18); }
+.kpi .v { font-family: var(--display); font-size: 2.6rem; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums;
+  display: inline-block; animation: countUp 1.2s cubic-bezier(.2,.9,.3,1) .3s both; }
+@keyframes countUp { 0% { transform: translateY(60%); opacity: 0; filter: blur(10px); } 60% { filter: blur(0); } 100% { transform: none; opacity: 1; } }
+.kpi.hot .v { background: var(--sunset); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: countUp 1.2s cubic-bezier(.2,.9,.3,1) .3s both, sweep 6s linear infinite; }
 .kpi .s { color: var(--muted); font-size: .92rem; margin-top: 6px; }
-.callout { border-radius: 18px; padding: 16px 20px; background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.35); }
-.callout b { color: #FDE68A; }
-.sample { background: rgba(251,191,36,.12); color: #FDE68A; border: 1px solid rgba(251,191,36,.45);
-          border-radius: 14px; padding: 12px 16px; font-weight: 700; }
+.callout { border-radius: 18px; padding: 16px 20px; background: rgba(18,6,31,.9); border: 1px solid rgba(255,200,87,.5); }
+.callout b { color: var(--gold); }
+.sample { position: relative; z-index: 1; background: rgba(40,20,0,.85); color: #FFE7A8; border: 1.5px solid rgba(255,200,87,.7);
+  border-radius: 14px; padding: 12px 16px; font-weight: 700; }
+.timeline { display: flex; align-items: center; gap: 0; margin: 6px 0 16px; padding: 18px 20px; border-radius: 20px;
+  background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(10px); }
+.tl-node { flex: 1; text-align: center; position: relative; animation: fadeUp .6s ease both; }
+.tl-node:nth-child(2) { animation-delay: .2s; } .tl-node:nth-child(3) { animation-delay: .4s; } .tl-node:nth-child(4) { animation-delay: .6s; }
+.tl-dot { width: 18px; height: 18px; border-radius: 50%; margin: 0 auto 8px; background: var(--pink);
+  box-shadow: 0 0 0 4px rgba(255,46,136,.2), 0 0 20px rgba(255,46,136,.8); animation: nodePulse 2.4s ease-in-out infinite; }
+.tl-node.best .tl-dot { background: var(--gold); box-shadow: 0 0 0 4px rgba(255,200,87,.25), 0 0 24px rgba(255,200,87,.9); }
+@keyframes nodePulse { 50% { transform: scale(1.25); } }
+.tl-node .r { font-family: 'Space Grotesk'; font-size: .78rem; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; }
+.tl-node .a { font-family: var(--display); font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tl-node .d { font-size: .82rem; color: var(--muted); }
+.tl-line { flex: 0 0 40px; height: 2px; background: var(--sunset); background-size: 300% 100%; animation: sweep 3s linear infinite; }
 
-/* sell */
-.pricetag { display: inline-flex; align-items: baseline; gap: 14px; padding: 18px 24px; border-radius: 20px;
-            background: linear-gradient(140deg, rgba(108,59,255,.28), rgba(177,75,255,.08)); border: 1px solid rgba(124,77,255,.55); }
-.pricetag .p { font-family: 'Space Grotesk'; font-size: 3.4rem; font-weight: 700; line-height: 1; }
-.pricetag .m { color: #C9C9D6; font-variant-numeric: tabular-nums; }
-.listing { border-radius: 20px; overflow: hidden; border: 1px solid var(--line); background: #13131B; }
-.listing .img { height: 180px; background: radial-gradient(circle at 50% 40%, rgba(177,75,255,.35), transparent 60%), #1A1A24;
-                display: grid; place-items: center; font-size: 4rem; }
+/* ===================================================== 7. SELL */
+.pricetag { display: inline-flex; align-items: center; gap: 16px; padding: 18px 26px 18px 34px; border-radius: 22px 22px 22px 22px;
+  background: linear-gradient(140deg, rgba(255,46,136,.35), rgba(255,138,61,.18)); border: 1.5px solid rgba(255,46,136,.7);
+  position: relative; transform-origin: 30px 0; animation: swing 1.6s cubic-bezier(.2,1.6,.4,1) both; box-shadow: 0 14px 40px rgba(255,46,136,.3); }
+.pricetag::before { content: ""; position: absolute; left: 14px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%;
+  background: #12061F; border: 2px solid rgba(255,255,255,.6); }
+@keyframes swing { 0% { transform: rotate(-8deg); opacity: 0; } 20% { opacity: 1; } 45% { transform: rotate(5deg); } 70% { transform: rotate(-2deg); } 100% { transform: none; } }
+.pricetag .p { font-family: var(--display); font-size: 3.4rem; font-weight: 800; line-height: 1; }
+.pricetag .m { color: #F3E6FA; font-variant-numeric: tabular-nums; }
+.listing { border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: rgba(18,6,31,.92);
+  animation: slideUp .7s cubic-bezier(.2,1.2,.4,1) .3s both; box-shadow: 0 24px 60px rgba(0,0,0,.45), 0 0 50px rgba(255,46,136,.12); }
+@keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.listing .img { height: 180px; display: grid; place-items: center; font-size: 4rem;
+  background: radial-gradient(circle at 50% 40%, rgba(255,138,61,.45), transparent 60%), radial-gradient(circle at 20% 80%, rgba(25,227,209,.25), transparent 50%), #1B0B33; }
 .listing .body { padding: 16px 20px 20px; }
 .listing .t { font-weight: 700; font-size: 1.08rem; }
-.listing .pr { font-family: 'Space Grotesk'; font-size: 1.9rem; font-weight: 700; margin: 6px 0 8px; }
-.listing .d { color: #C9C9D6; white-space: pre-line; line-height: 1.5; }
+.listing .pr { font-family: var(--display); font-size: 1.9rem; font-weight: 800; margin: 6px 0 8px; color: var(--gold); }
+.listing .d { color: #E2D6EE; white-space: pre-line; line-height: 1.5; }
 .listing .src { color: var(--muted); font-size: .8rem; margin-top: 10px; }
 
+/* ===================================================== 8. MICRO-INTERACTIONS */
+.stButton > button[kind="primary"] { background: var(--sunset); background-size: 300% 100%; border: 0; border-radius: 16px;
+  font-family: var(--display); font-weight: 700; font-size: 1rem; letter-spacing: .02em; color: #1B0B33; padding: .8rem 1rem;
+  box-shadow: 0 10px 34px rgba(255,46,136,.45); animation: sweep 6s linear infinite; transition: transform .2s, box-shadow .2s; }
+.stButton > button[kind="primary"]:hover { transform: translateY(-2px) scale(1.01); box-shadow: 0 16px 44px rgba(255,46,136,.65); color: #1B0B33; }
+.stButton > button[kind="primary"] p { color: #1B0B33; font-weight: 800; }
+input:focus, textarea:focus, [data-baseweb="input"]:focus-within, [data-baseweb="textarea"]:focus-within, [data-baseweb="select"]:focus-within {
+  box-shadow: 0 0 0 2px var(--teal) !important; border-radius: 10px; }
+[data-testid="stFileUploaderDropzone"] { background: rgba(18,6,31,.8); border: 1.5px dashed rgba(25,227,209,.55); border-radius: 20px; min-height: 150px;
+  transition: border-color .3s, box-shadow .3s; }
+[data-testid="stFileUploaderDropzone"]:hover { border-color: var(--teal); box-shadow: 0 0 30px rgba(25,227,209,.25); }
+[data-testid="stExpander"], [data-testid="stDataFrame"] { background: rgba(18,6,31,.78); border-radius: 14px; }
+
 @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); }
-  .hero h1 { font-size: 2.4rem; } .action { font-size: 2.6rem; } }
+  .hero h1 { font-size: 2.8rem; } .action { font-size: 2.6rem; } }
+
+/* ===================================================== 9. REDUCED MOTION */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+  .grid-floor, .scan, .orb, .ticker .track { animation: none !important; }
+}
 </style>
 """, unsafe_allow_html=True)
+
+# Background layers (decorative, fixed, behind content, never intercept clicks)
+st.markdown('<div class="bg-layer"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>'
+            '<div class="sun"></div><div class="grid-floor"></div><div class="scan"></div></div>',
+            unsafe_allow_html=True)
 
 
 def _dark(chart):
@@ -443,7 +582,7 @@ def prob_chart(probs: dict, pick: str, height: int = 220):
     bars = alt.Chart(df).mark_bar(cornerRadiusEnd=6, height=22).encode(
         y=alt.Y("option:N", sort=list(probs.keys()), title=None),
         x=alt.X("probability:Q", axis=alt.Axis(format="%", tickCount=5), scale=alt.Scale(domain=[0, 1]), title=None),
-        color=alt.condition("datum.picked", alt.value("#8B5CF6"), alt.value("#2E2E3A")),
+        color=alt.condition("datum.picked", alt.value("#FF2E88"), alt.value("#3A2A4F")),
         tooltip=["option", alt.Tooltip("probability:Q", format=".1%")],
     )
     text = alt.Chart(df).mark_text(align="left", dx=6, color="#ECECF1", font="Inter", fontSize=12).encode(
@@ -452,7 +591,7 @@ def prob_chart(probs: dict, pick: str, height: int = 220):
 
 
 MODEL_COLORS = alt.Scale(domain=[MODEL_LABELS["drex"], MODEL_LABELS["drex2"], MODEL_LABELS["llm"]],
-                         range=["#8B5CF6", "#C084FC", "#6B7280"])
+                         range=["#FF2E88", "#FF8A3D", "#A59BB8"])
 
 
 def metric_bar(df: pd.DataFrame, field: str, title: str, fmt: str):
@@ -498,6 +637,44 @@ def _img_or_placeholder(name: str, emoji: str, caption: str) -> str:
     return f'<div class="ph">{emoji}<small>{caption}</small></div>'
 
 
+def _recorded_pair():
+    """A random hard-set item where both Drex Max and Claude have a recorded (cached, real) answer."""
+    path = RESULTS_DIR / "decisions_full.csv"
+    if not path.exists():
+        return None
+    d = pd.read_csv(path, keep_default_na=False)
+    d = d[(d["dataset"] == "hard") & (d["repeat"].astype(int) == 0) & (d["error"] == "")]
+    both = set(d[d["model"] == "drex"]["item_id"]) & set(d[d["model"] == "llm"]["item_id"])
+    if not both:
+        return None
+    hard = pd.read_csv(DATA_DIR / "negotiation_hard.csv").set_index("id")
+    item = random.choice(sorted(both))
+    row = hard.loc[item]
+
+    def as_result(model):
+        r = d[(d["model"] == model) & (d["item_id"] == item)].iloc[0]
+        return {"answer": r["chosen"] or None, "probs": json.loads(r["probs_json"]) if r["probs_json"] and model == "drex" else None,
+                "latency_ms": float(r["latency_ms"]), "cost_usd": float(r["cost_usd"]),
+                "invalid": str(r["invalid"]).lower() == "true", "error": None, "model": model}
+    return {"id": item, "category": row["category"], "message": str(row["message"]), "item": str(row["item"]),
+            "offer": float(row["offer"]), "list": float(row["list_price"]), "floor": float(row["floor_price"]),
+            "expected": row["expected_action"], "is_scam": int(row["is_scam"]),
+            "drex": as_result("drex"), "llm": as_result("llm")}
+
+
+def _sparks(n: int = 22) -> str:
+    """Pure-CSS confetti: small squares flying out from the banner centre (deterministic positions)."""
+    colors = ["#FFFFFF", "#19E3D1", "#FFC857", "#12061F", "#FF2E88"]
+    out = []
+    for i in range(n):
+        angle = i * 360 / n
+        import math
+        dx, dy = 260 * math.cos(math.radians(angle)), 90 * math.sin(math.radians(angle))
+        out.append(f'<span class="spark" style="left:50%;top:50%;background:{colors[i % len(colors)]};'
+                   f'--dx:{dx:.0f}px;--dy:{dy:.0f}px;animation-delay:{0.35 + (i % 5) * 0.06:.2f}s"></span>')
+    return "".join(out)
+
+
 # ------------------------------------------------------------- SIDEBAR
 with st.sidebar:
     st.markdown("### 🧥 ThriftAgent")
@@ -507,6 +684,9 @@ with st.sidebar:
                    "once the Drex + LLM clients work.")
     else:
         st.success("**LIVE MODE** - real Drex + frontier LLM calls.")
+    engine_label = st.radio("Drex engine", ["Drex Max (Nace API)", "Drex 2.0 open weights (DeepInfra)"],
+                            help="Switch if one provider is down. The active engine is named on every result.")
+    DREX_ENGINE["engine"] = "drex2" if engine_label.startswith("Drex 2.0") else "drex"
     if st.session_state.get("history"):
         hist = st.session_state["history"]
         drex_total = sum(h["drex_ms"] for h in hist)
@@ -516,11 +696,13 @@ with st.sidebar:
 
 # ------------------------------------------------------------- HERO
 _h = _headline()
+_letters = "".join(f'<span class="ltr" style="animation-delay:{0.15 + i * 0.05:.2f}s, 0s">{c}</span>'
+                   for i, c in enumerate("ThriftAgent"))
 st.markdown(f"""
 <div class="hero">
   <div>
     <div class="eyebrow">Drexathon · Drex vs the Giants</div>
-    <h1>Thrift<span class="grad">Agent</span></h1>
+    <h1>{_letters}</h1>
     <p class="tag">An AI agent that sells your used clothes. <b>The LLM writes. Drex decides.</b></p>
     <div class="chips">
       <span class="chip">⚡ <b>{_h['speed']}</b> faster</span>
@@ -532,6 +714,28 @@ st.markdown(f"""
   <div class="hero-art">{_img_or_placeholder("hero", "🧥", "Adobe Firefly hero · assets/hero.png")}</div>
 </div>
 """, unsafe_allow_html=True)
+
+def _ticker_items():
+    items = [f'<span class="hot">⚡ DREX {_h["speed"]} FASTER</span>', f'<span class="hot">💸 {_h["cost"]} CHEAPER</span>',
+             f'<span class="up">🎯 {_h["acc"]} ON 80 PRE-REGISTERED HARD MESSAGES</span>']
+    hs_ = _hard_summary()
+    try:
+        hard_ = hs_[hs_["dataset"] == "hard"].set_index("model")
+        items += [f'<span class="up">DREX {hard_.loc["drex", "median_latency_ms"]:,.0f} MS ▲</span>',
+                  f'<span class="dim">CLAUDE {hard_.loc["llm", "median_latency_ms"]:,.0f} MS</span>']
+    except Exception:
+        pass
+    try:
+        sc = json.loads((RESULTS_DIR / "scale1000.json").read_text())["drex"]
+        items.append(f'<span class="hot">1,000 DECISIONS IN {sc["seconds"]:.0f}S FOR ${sc["total_cost_usd"]:.3f}</span>')
+    except Exception:
+        pass
+    items.append('<span class="dim">PRICING: THE LLM STILL WINS · ROUTED TO THE LLM</span>')
+    return " · ".join(items)
+
+
+_t = _ticker_items()
+st.markdown(f'<div class="ticker"><div class="track">{_t} · {_t} · </div></div>', unsafe_allow_html=True)
 
 if USE_MOCK:
     st.markdown('<div class="sample">⚠️ MOCK MODE - answers and timings below are simulated.</div>',
@@ -572,12 +776,16 @@ with tab_negotiate:
 
     st.markdown(f"""
     <div class="chat"><div class="avatar">🛍️</div>
-      <div class="bubble">{_html.escape(str(message))}
+      <div class="bubble"><span class="dots"><i></i><i></i><i></i></span>{_html.escape(str(message))}
         <div class="meta">Offer <b>${offer:,.2f}</b> on <b>{_html.escape(str(item))}</b> · listed ${list_price:,.0f}
         · floor ${floor_price:,.0f} · {100 * offer / list_price:.1f}% of list</div></div></div>
     """, unsafe_allow_html=True)
 
-    go = st.button("⚡ Send to Drex and the LLM", type="primary", use_container_width=True)
+    DREX_NAME = "Drex 2.0" if DREX_ENGINE["engine"] == "drex2" else "Drex Max"
+    bcol1, bcol2 = st.columns([3, 1.2])
+    go = bcol1.button("⚡ Send to Drex and the LLM", type="primary", use_container_width=True)
+    replay = bcol2.button("▶ Replay a recorded run", use_container_width=True,
+                          help="Plays back REAL cached responses from the benchmark, at their recorded speed.")
 
     facts = {
         "seller policy": SELLER_POLICY,
@@ -605,8 +813,10 @@ with tab_negotiate:
         badge = '<span class="badge">ANSWERED FIRST</span>' if first else ""
         head = f'<div class="who"><span class="name">{name.upper()}</span>{badge}</div>'
         if result is None:
-            slot.markdown(f'<div class="{cls}">{head}<div class="thinking">thinking…</div>'
-                          f'<div class="timer" style="color:var(--muted)">⏱ running</div></div>', unsafe_allow_html=True)
+            scanner = '<div class="scanner"></div>' if is_drex else ""
+            slot.markdown(f'<div class="{cls}">{scanner}{head}<div class="progress"><i></i></div>'
+                          f'<div class="thinking">deciding…</div>'
+                          f'<div class="timer" style="margin-top:14px">⏱ live</div></div>', unsafe_allow_html=True)
             return
         if result.get("answer") == "—":
             slot.markdown(f'<div class="{cls}">{head}<div class="idle">ready</div>'
@@ -620,15 +830,41 @@ with tab_negotiate:
             ok = ans == expected
             pill = ('<span class="pill ok">✓ matches policy</span>' if ok
                     else '<span class="pill bad">✗ wrong call</span>')
-            body = (f'<div class="action" style="color:{ACTION_COLOR.get(ans, "#ECECF1")}">'
-                    f'{ACTION_WORD.get(ans, str(ans).upper())}</div>{pill}')
+            word = ACTION_WORD.get(ans, str(ans).upper())
+            body = (f'<div class="action glitch" data-text="{word}" style="color:{ACTION_COLOR.get(ans, "#FFF4F8")};'
+                    f'text-shadow:0 0 28px {ACTION_COLOR.get(ans, "#FFF4F8")}66">{word}</div><br>{pill}')
+            if is_drex:
+                cls += " done"
         slot.markdown(
             f'<div class="{cls}">{head}{body}'
             f'<div class="timer" style="margin-top:14px">{(result["latency_ms"] or 0):,.0f} ms'
             f'<small>${result["cost_usd"]:.6f} per decision</small></div></div>', unsafe_allow_html=True)
 
-    if go:
-        render_card(slot_drex, "Drex", None, True)
+    rec = _recorded_pair() if replay else None
+    if replay and rec is None:
+        st.warning("No recorded runs found (bench/results/decisions_full.csv).")
+    if rec is not None:
+        # REPLAY: real cached API responses from the benchmark, played back at their recorded latency.
+        expected = rec["expected"]
+        banner_slot.markdown(
+            f'<div class="sample">▶ REPLAY of a recorded benchmark run · {rec["id"]} ({rec["category"].replace("_", " ")}) · '
+            f'real Drex Max + Claude responses captured earlier today, shown at their real speed.<br>'
+            f'<span style="font-weight:500">💬 “{_html.escape(rec["message"])}” · offer ${rec["offer"]:g} on '
+            f'{_html.escape(rec["item"])} (list ${rec["list"]:g}, floor ${rec["floor"]:g})</span></div>',
+            unsafe_allow_html=True)
+        render_card(slot_drex, "Drex Max · replay", None, True)
+        render_card(slot_llm, "Claude Opus 5.5 · replay", None, False)
+        d_rec, l_rec = rec["drex"], rec["llm"]
+        time.sleep(d_rec["latency_ms"] / 1000)
+        render_card(slot_drex, "Drex Max · replay", d_rec, True, first=not d_rec["invalid"])
+        time.sleep(max(0.0, (l_rec["latency_ms"] - d_rec["latency_ms"]) / 1000))
+        render_card(slot_llm, "Claude Opus 5.5 · replay", l_rec, False)
+        st.session_state["neg"] = {"results": {"drex": d_rec, "llm": l_rec}, "expected": rec["expected"],
+                                   "signals": ["recorded scam"] if rec["is_scam"] else [], "first": "drex",
+                                   "replay": rec}
+    elif go:
+        st.session_state.pop("neg", None)
+        render_card(slot_drex, DREX_NAME, None, True)
         render_card(slot_llm, "Frontier LLM", None, False)
         results, order = {}, []
         with ThreadPoolExecutor(max_workers=2) as pool:
@@ -643,21 +879,27 @@ with tab_negotiate:
                                      "invalid": True, "error": f"{type(error).__name__}: {error}", "model": ""}
                 order.append(name)
                 if name == "drex":
-                    render_card(slot_drex, "Drex", results[name], True, first=(order[0] == "drex"))
+                    render_card(slot_drex, DREX_NAME, results[name], True,
+                                    first=(order[0] == "drex" and not results[name]["invalid"]))
                 else:
                     render_card(slot_llm, "Frontier LLM", results[name], False, first=False)
         st.session_state["neg"] = {"results": results, "expected": expected,
-                                   "signals": scam_signals(message), "first": order[0] if order else None}
+                                   "signals": scam_signals(message),
+                                   "first": order[0] if order and not results[order[0]]["invalid"] else None}
         d_ms, l_ms = results["drex"]["latency_ms"], results["llm"]["latency_ms"]
         if d_ms and l_ms and not (results["drex"]["invalid"] or results["llm"]["invalid"]):
             st.session_state.setdefault("history", []).append({"drex_ms": d_ms, "llm_ms": l_ms})
     elif st.session_state.get("neg"):
         res = st.session_state["neg"]["results"]
-        render_card(slot_drex, "Drex", res["drex"], True, first=st.session_state["neg"].get("first") == "drex")
-        render_card(slot_llm, "Frontier LLM", res["llm"], False)
+        is_replay = "replay" in st.session_state["neg"]
+        if is_replay:
+            expected = st.session_state["neg"]["expected"]
+        render_card(slot_drex, "Drex Max · replay" if is_replay else DREX_NAME, res["drex"], True,
+                    first=st.session_state["neg"].get("first") == "drex")
+        render_card(slot_llm, "Claude Opus 5.5 · replay" if is_replay else "Frontier LLM", res["llm"], False)
     else:
         idle = {"answer": "—", "latency_ms": 0, "cost_usd": 0, "invalid": False, "error": None, "probs": None}
-        render_card(slot_drex, "Drex", idle, True)
+        render_card(slot_drex, DREX_NAME, idle, True)
         render_card(slot_llm, "Frontier LLM", idle, False)
 
     neg = st.session_state.get("neg")
@@ -672,9 +914,18 @@ with tab_negotiate:
             cheaper = (l["cost_usd"] / d["cost_usd"]) if d["cost_usd"] else None
             extra = f" · {cheaper:,.0f}× cheaper" if cheaper else ""
             banner_slot.markdown(
-                f'<div class="banner"><div class="big">⚡ Drex was {speedup:.1f}× faster{extra}</div>'
-                f'<small>{d["latency_ms"]:,.0f} ms vs {l["latency_ms"]:,.0f} ms on the exact same decision</small></div>',
+                f'<div class="banner">{_sparks()}<div class="big">⚡ Drex was {speedup:.1f}× faster{extra}</div>'
+                f'<small>{d["latency_ms"]:,.0f} ms vs {l["latency_ms"]:,.0f} ms on the exact same decision'
+                f'{" · REPLAY of recorded real responses" if "replay" in neg else ""}</small></div>',
                 unsafe_allow_html=True)
+        if "replay" in neg:
+            rp = neg["replay"]
+            st.markdown(f'<div class="chat"><div class="avatar">🛍️</div><div class="bubble">'
+                        f'<span class="label" style="color:var(--gold)">Replayed message · {rp["id"]} · '
+                        f'{rp["category"].replace("_", " ")}</span><br>{_html.escape(rp["message"])}'
+                        f'<div class="meta">Offer <b>${rp["offer"]:g}</b> on <b>{_html.escape(rp["item"])}</b> · '
+                        f'list ${rp["list"]:g} · floor ${rp["floor"]:g} · recorded real API responses</div></div></div>',
+                        unsafe_allow_html=True)
         i1, i2 = st.columns([1.2, 1], gap="large")
         with i1:
             if d["probs"]:
@@ -839,6 +1090,28 @@ with tab_results:
                      for name in existing}
         keys = sorted(set.intersection(*(set(v) for v in per_round.values())))
         if keys:
+            nodes = []
+            for n in existing:
+                neg_acc = per_round[n].get(("negotiation", "drex"))
+                pr_acc = per_round[n].get(("pricing", "drex"))
+                if neg_acc is not None:
+                    nodes.append((n.split(" · ")[0], neg_acc, f"pricing {pr_acc:.0%}" if pr_acc is not None else ""))
+            if hs is not None and "hard" in set(hs["dataset"]):
+                try:
+                    nodes.append(("Hard set", float(hs[(hs["dataset"] == "hard") & (hs["model"] == "drex")]["accuracy"].iloc[0]),
+                                  "80 pre-registered"))
+                except IndexError:
+                    pass
+            if nodes:
+                best = max(a for _, a, _ in nodes)
+                parts = []
+                for i, (r, a, d) in enumerate(nodes):
+                    if i:
+                        parts.append('<div class="tl-line"></div>')
+                    parts.append(f'<div class="tl-node{" best" if a == best else ""}"><div class="tl-dot"></div>'
+                                 f'<div class="r">{r}</div><div class="a">{a:.0%}</div><div class="d">{d}</div></div>')
+                st.markdown('<div class="label" style="margin-top:4px">Drex · negotiation accuracy by round</div>'
+                            f'<div class="timeline">{"".join(parts)}</div>', unsafe_allow_html=True)
             with st.expander("📈 Accuracy round by round", expanded=True):
                 short = {name: name.split(" · ")[0].lower() for name in existing}
                 table = pd.DataFrame([{"benchmark": k[0], "model": MODEL_LABELS.get(k[1], k[1]),
