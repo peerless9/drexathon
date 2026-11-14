@@ -5,10 +5,23 @@ Benchmark: Drex vs a frontier LLM on two reselling decisions.
     python bench/run_bench.py --models llm         # just the LLM (e.g. before Drex is wired up)
     python bench/run_bench.py --limit 3            # first 3 rows of each CSV (cheap smoke test)
     python bench/run_bench.py --bench negotiation  # one benchmark only
+    python bench/run_bench.py --variant v2         # round 2 (see VARIANTS below)
 
 Data:   bench/data/pricing.csv, bench/data/negotiation.csv
         (falls back to *_SAMPLE.csv if the real file is missing; skips if neither exists)
 Output: bench/results/summary.json  +  one per-row CSV per (benchmark, model)
+        (round 2 writes to bench/results/v2/ instead, so v1 stays untouched)
+
+VARIANTS - every change gives BOTH models exactly the same extra input:
+  v1  plain facts + option labels.
+  v2  + pre-computed numbers ("code does the math"):
+          negotiation: offer as % of list, offer minus floor
+          pricing:     number of comps, median comp, median of same-condition comps, range
+      + option descriptions (negotiation: the policy rule for each option)
+      + pricing options from the 10th-90th percentile instead of 25th-75th
+      + negotiation fact "90% of list price = $X"
+      Also reported (not used as the answer): accuracy if Drex picked the option
+      closest to its probability-weighted price.
 """
 
 import argparse
@@ -40,6 +53,14 @@ SELLER_POLICY = (
     "or wants to send their own shipping label)."
 )
 
+# v2: what each negotiation option means - the seller policy, split per option.
+NEGOTIATION_DESCRIPTIONS = {
+    "accept": "Offer is at least 90% of the list price, and no scam signs",
+    "counter": "Offer is at or above the floor price but below 90% of the list price, and no scam signs",
+    "decline": "Offer is below the floor price, OR the buyer shows scam signs "
+               "(off-platform payment like Zelle/Venmo/CashApp, asks to text/email, own shipping label)",
+}
+
 MODELS = {
     "llm": llm_client,
     "drex": drex_client,
@@ -63,11 +84,20 @@ def load_csv(name: str):
 
 # ---------------------------------------------------------------- pricing cases
 
-def make_price_options(comp_prices: list) -> list:
-    """5 options from the comps: 25th/40th/50th/60th/75th percentiles, rounded to whole dollars."""
+# v1 options sit between the 25th and 75th percentile of the comps, so the real price
+# was often outside them and the right answer was just "the lowest" or "the highest"
+# option (29 of 40 rows). v2 spreads them from the 10th to the 90th percentile.
+PERCENTILES = {
+    "v1": (0.25, 0.40, 0.50, 0.60, 0.75),
+    "v2": (0.10, 0.30, 0.50, 0.70, 0.90),
+}
+
+
+def make_price_options(comp_prices: list, variant: str = "v1") -> list:
+    """5 options from the comps' percentiles (see PERCENTILES), rounded to whole dollars."""
     series = pd.Series(comp_prices, dtype=float)
     options = []
-    for percentile in (0.25, 0.40, 0.50, 0.60, 0.75):
+    for percentile in PERCENTILES[variant]:
         price = int(round(series.quantile(percentile)))
         # Keep options distinct: if rounding made a duplicate, bump it up a dollar.
         while price in options:
@@ -76,7 +106,7 @@ def make_price_options(comp_prices: list) -> list:
     return options
 
 
-def build_pricing_cases(dataframe: pd.DataFrame) -> list:
+def build_pricing_cases(dataframe: pd.DataFrame, variant: str = "v1") -> list:
     """One case per item. Comps = the OTHER items in the same category (leave-one-out)."""
     cases = []
     for _, row in dataframe.iterrows():
@@ -85,7 +115,7 @@ def build_pricing_cases(dataframe: pd.DataFrame) -> list:
             print(f"  skip pricing id={row['id']}: fewer than 2 comps in category '{row['category']}'")
             continue
 
-        option_prices = make_price_options(comps["sold_price"].tolist())
+        option_prices = make_price_options(comps["sold_price"].tolist(), variant)
         options = [f"${price}" for price in option_prices]
         # Correct = the option closest to the real sold price.
         distances = [abs(price - float(row["sold_price"])) for price in option_prices]
@@ -103,6 +133,14 @@ def build_pricing_cases(dataframe: pd.DataFrame) -> list:
             "condition": row["condition"],
             "recently sold comparable items": "; ".join(comp_lines),
         }
+        if variant == "v2":
+            same_condition = comps[comps["condition"] == row["condition"]]["sold_price"]
+            facts["number of comparable sales"] = len(comps)
+            facts["median comparable sale price"] = f"${comps['sold_price'].median():.2f}"
+            facts["comparable price range"] = f"${comps['sold_price'].min():.2f} to ${comps['sold_price'].max():.2f}"
+            if len(same_condition) >= 2:
+                facts[f"median price of comps in the same condition ({row['condition']})"] = (
+                    f"${same_condition.median():.2f} (from {len(same_condition)} sales)")
         cases.append({"id": row["id"], "facts": facts, "question": PRICING_QUESTION,
                       "options": options, "correct": correct,
                       "actual_price": float(row["sold_price"])})
@@ -111,7 +149,7 @@ def build_pricing_cases(dataframe: pd.DataFrame) -> list:
 
 # ---------------------------------------------------------------- negotiation cases
 
-def build_negotiation_cases(dataframe: pd.DataFrame) -> list:
+def build_negotiation_cases(dataframe: pd.DataFrame, variant: str = "v1") -> list:
     cases = []
     for _, row in dataframe.iterrows():
         facts = {
@@ -123,18 +161,35 @@ def build_negotiation_cases(dataframe: pd.DataFrame) -> list:
             "buyer message": row["buyer_message"],
             "offer": f"${row['offer']}",
         }
+        descriptions = None
+        if variant == "v2":
+            offer, list_price, floor = float(row["offer"]), float(row["list_price"]), float(row["floor_price"])
+            facts["offer as % of list price"] = f"{100 * offer / list_price:.1f}%"
+            facts["90% of list price"] = f"${0.9 * list_price:.2f}"
+            gap = offer - floor
+            facts["offer compared to floor"] = (f"${gap:.0f} above the floor" if gap >= 0
+                                                else f"${-gap:.0f} BELOW the floor")
+            descriptions = NEGOTIATION_DESCRIPTIONS
         cases.append({"id": row["id"], "facts": facts, "question": NEGOTIATION_QUESTION,
-                      "options": NEGOTIATION_OPTIONS,
+                      "options": NEGOTIATION_OPTIONS, "descriptions": descriptions,
                       "correct": str(row["correct_action"]).strip().lower()})
     return cases
 
 
 # ---------------------------------------------------------------- running + metrics
 
-def run_cases(model_name: str, client, cases: list) -> list:
+def run_cases(model_name: str, client, cases: list, variant: str = "v1") -> list:
     rows = []
     for number, case in enumerate(cases, start=1):
-        result = client.decide(case["facts"], case["question"], case["options"])
+        result = client.decide(case["facts"], case["question"], case["options"],
+                               case.get("descriptions"))
+        result["top_answer"] = result["answer"]
+        if variant == "v2" and "actual_price" in case and result["probabilities"]:
+            # Probability-weighted price, then the option closest to it.
+            expected = sum(prob * float(str(option).strip("$"))
+                           for option, prob in result["probabilities"].items())
+            result["expected_option"] = min(case["options"], key=lambda o: abs(float(o.strip("$")) - expected))
+            result["expected_price"] = round(expected, 2)
         is_correct = (not result["invalid"]) and result["answer"] == case["correct"]
         status = "ERROR" if result["error"] else ("ok " if is_correct else "MISS")
         print(f"  [{model_name}] {number}/{len(cases)} id={case['id']}: {status} "
@@ -151,6 +206,10 @@ def run_cases(model_name: str, client, cases: list) -> list:
             "dollar_error": dollar_error,
             "correct_answer": case["correct"],
             "answer": result["answer"],
+            "top_answer": result["top_answer"],
+            "expected_price": result.get("expected_price"),
+            "expected_option_correct": (result.get("expected_option") == case["correct"]
+                                        if result.get("expected_option") else None),
             "is_correct": is_correct,
             "invalid": result["invalid"],
             "latency_s": result["latency_s"],
@@ -176,6 +235,9 @@ def summarize(rows: list) -> dict:
     costs = [row["cost_usd"] for row in rows if not row["error"]]
     dollar_errors = [row["dollar_error"] for row in rows if row.get("dollar_error") is not None]
     extra = {}
+    expected_hits = [row["expected_option_correct"] for row in rows if row.get("expected_option_correct") is not None]
+    if expected_hits:
+        extra["accuracy_expected_price_pick"] = round(sum(expected_hits) / len(expected_hits), 4)
     if dollar_errors:
         extra["mean_dollar_error"] = round(statistics.mean(dollar_errors), 2)
     return {
@@ -198,14 +260,16 @@ def main():
     parser.add_argument("--models", default="llm,drex", help="comma list: llm,drex")
     parser.add_argument("--bench", default="pricing,negotiation", help="comma list: pricing,negotiation")
     parser.add_argument("--limit", type=int, default=None, help="only run the first N rows of each CSV")
+    parser.add_argument("--variant", default="v1", choices=["v1", "v2"], help="see VARIANTS at the top")
     args = parser.parse_args()
 
     model_names = [name.strip() for name in args.models.split(",") if name.strip()]
     bench_names = [name.strip() for name in args.bench.split(",") if name.strip()]
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    results_dir = RESULTS_DIR if args.variant == "v1" else RESULTS_DIR / args.variant
+    results_dir.mkdir(parents=True, exist_ok=True)
 
     builders = {"pricing": build_pricing_cases, "negotiation": build_negotiation_cases}
-    output_path = RESULTS_DIR / "summary.json"
+    output_path = results_dir / "summary.json"
 
     # Keep results for benchmarks/models we are NOT re-running this time,
     # so "--bench pricing" doesn't wipe out the negotiation numbers.
@@ -217,6 +281,7 @@ def main():
             pass
     summary["generated_at"] = datetime.now().isoformat(timespec="seconds")
     summary["llm_model"] = f"{llm_client.get_provider()}:{llm_client.get_model()}"
+    summary["variant"] = args.variant
 
     for bench_name in bench_names:
         dataframe, path = load_csv(bench_name)
@@ -225,7 +290,7 @@ def main():
             summary["benchmarks"][bench_name] = {"skipped": "no data file"}
             continue
 
-        cases = builders[bench_name](dataframe)
+        cases = builders[bench_name](dataframe, args.variant)
         if args.limit:
             cases = cases[: args.limit]
         is_sample = "SAMPLE" in path.name
@@ -233,9 +298,11 @@ def main():
               + ("   (SAMPLE DATA - not real results!)" if is_sample else ""))
 
         previous_models = summary.get("benchmarks", {}).get(bench_name, {}).get("models", {})
-        if summary.get("benchmarks", {}).get(bench_name, {}).get("data_file") != path.name:
+        previous = summary.get("benchmarks", {}).get(bench_name, {})
+        if previous.get("data_file") != path.name or previous.get("n_cases") != len(cases):
             previous_models = {}  # different data file -> old numbers don't apply
-        bench_summary = {"data_file": path.name, "is_sample_data": is_sample, "models": dict(previous_models)}
+        bench_summary = {"data_file": path.name, "n_cases": len(cases), "is_sample_data": is_sample,
+                         "models": dict(previous_models)}
         if bench_name == "pricing" and cases:
             # Dumb baseline: always pick the middle option (the comps' median).
             hits = sum(1 for case in cases if case["options"][2] == case["correct"])
@@ -251,8 +318,8 @@ def main():
                 print("  [drex] skipped: not configured yet (needs DREX_API_KEY + real _call_drex)")
                 bench_summary["models"]["drex"] = {"skipped": "drex not configured"}
                 continue
-            rows = run_cases(model_name, MODELS[model_name], cases)
-            pd.DataFrame(rows).to_csv(RESULTS_DIR / f"{bench_name}_{model_name}.csv", index=False)
+            rows = run_cases(model_name, MODELS[model_name], cases, args.variant)
+            pd.DataFrame(rows).to_csv(results_dir / f"{bench_name}_{model_name}.csv", index=False)
             bench_summary["models"][model_name] = summarize(rows)
         summary["benchmarks"][bench_name] = bench_summary
 

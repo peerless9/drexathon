@@ -35,7 +35,7 @@ def is_configured() -> bool:
     return bool(os.getenv("DREX_API_KEY"))
 
 
-def _call_drex(facts, question: str, options: list) -> dict:
+def _call_drex(facts, question: str, options: list, option_descriptions: dict = None) -> dict:
     """
     Send one "choice" question to Drex. Request shape is from
     console.nace.ai/docs/drex/guides/questions:
@@ -53,8 +53,8 @@ def _call_drex(facts, question: str, options: list) -> dict:
             "decision": {
                 "type": "choice",
                 "instructions": question,
-                # Option labels only, no descriptions - the LLM also gets labels only.
-                "criteria": {str(option): None for option in options},
+                # Label -> description (or None). The LLM sees the same descriptions.
+                "criteria": {str(option): (option_descriptions or {}).get(option) for option in options},
             }
         },
     }
@@ -69,7 +69,7 @@ def _call_drex(facts, question: str, options: list) -> dict:
     return response.json()
 
 
-def decide(facts, question: str, options: list) -> dict:
+def decide(facts, question: str, options: list, option_descriptions: dict = None) -> dict:
     """
     Same signature and return keys as llm_client.decide().
     Drex returns a probability per option; the answer is the most likely one.
@@ -89,7 +89,7 @@ def decide(facts, question: str, options: list) -> dict:
 
     start = time.perf_counter()
     try:
-        data = _call_drex(facts, question, options)
+        data = _call_drex(facts, question, options, option_descriptions)
     except Exception as error:
         result["latency_s"] = time.perf_counter() - start
         result["error"] = f"{type(error).__name__}: {error}"

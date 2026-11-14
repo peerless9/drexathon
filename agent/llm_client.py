@@ -76,9 +76,13 @@ def format_facts(facts) -> str:
     return str(facts)
 
 
-def build_user_prompt(facts, question: str, options: list) -> str:
+def build_user_prompt(facts, question: str, options: list, option_descriptions: dict = None) -> str:
     """The exact text both models see (Drex gets the same pieces as structured fields)."""
-    option_lines = "\n".join(f"- {option}" for option in options)
+    lines = []
+    for option in options:
+        description = (option_descriptions or {}).get(option)
+        lines.append(f"- {option}: {description}" if description else f"- {option}")
+    option_lines = "\n".join(lines)
     return (
         f"CASE FACTS:\n{format_facts(facts)}\n\n"
         f"QUESTION: {question}\n\n"
@@ -168,7 +172,7 @@ def _call_openai(model: str, user_prompt: str):
     return text, response.usage.prompt_tokens, output_tokens
 
 
-def decide(facts, question: str, options: list) -> dict:
+def decide(facts, question: str, options: list, option_descriptions: dict = None) -> dict:
     """
     Ask the frontier LLM to pick one option.
 
@@ -181,9 +185,12 @@ def decide(facts, question: str, options: list) -> dict:
         invalid        - True if the answer was missing or not an option
         raw            - the raw reply text
         error          - error message if the call failed, else None
+
+    option_descriptions (optional): {option: "what this option means"}.
+    Drex gets the exact same descriptions, so the comparison stays fair.
     """
     model = get_model()
-    user_prompt = build_user_prompt(facts, question, options)
+    user_prompt = build_user_prompt(facts, question, options, option_descriptions)
     result = {
         "model": f"{get_provider()}:{model}",
         "answer": None,
