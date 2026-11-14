@@ -93,11 +93,16 @@ def _call_drex(facts, question: str, options: list, option_descriptions: dict = 
 
 
 def decide(facts, question: str, options: list, option_descriptions: dict = None,
-           backend: str = "nace") -> dict:
+           backend: str = None) -> dict:
     """
+    backend: "nace" (Drex Max) or "deepinfra" (Drex 2.0). If not given, uses
+    DREX_BACKEND from .env (default "nace") - set DREX_BACKEND=deepinfra to switch
+    the app over if Nace's API is unreachable.
     Same signature and return keys as llm_client.decide().
     Drex returns a probability per option; the answer is the most likely one.
     """
+    if backend is None:
+        backend = os.getenv("DREX_BACKEND", "nace").strip().lower()
     result = {
         "model": f"drex:{BACKENDS[backend]['model']}",
         "answer": None,
