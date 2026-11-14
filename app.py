@@ -28,7 +28,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ============================================================== SETTINGS
-USE_MOCK = True  # flip to False once Levi's Drex + LLM clients work
+USE_MOCK = False  # real Drex + LLM calls (set True to demo without API keys)
 
 REPO_ROOT = Path(__file__).resolve().parent
 DATA_DIR = REPO_ROOT / "bench" / "data"
@@ -186,22 +186,9 @@ def generate_listing(brand, title, size, condition, category, price) -> tuple:
         '{"title": "<max 80 chars>", "description": "<3-5 short lines, friendly, honest>"}'
     )
     try:
-        provider = os.getenv("LLM_PROVIDER", "anthropic").lower()
-        if provider == "openai":
-            from openai import OpenAI
-            reply = OpenAI().chat.completions.create(
-                model=os.getenv("LLM_MODEL", "gpt-4o"),
-                messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"},
-            ).choices[0].message.content
-        else:
-            import anthropic
-            response = anthropic.Anthropic().messages.create(
-                model=os.getenv("LLM_MODEL", "claude-opus-5-5"), max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}],
-                output_config={"effort": "low"},
-            )
-            reply = "".join(b.text for b in response.content if b.type == "text")
+        # Levi's client handles every provider (anthropic / openai / gemini) from .env.
+        from agent.llm_client import write_text
+        reply = write_text(prompt)
         data = json.loads(re.search(r"\{.*\}", reply, re.DOTALL).group(0))
         return data["title"], data["description"], "LLM"
     except Exception as error:
@@ -557,7 +544,7 @@ with tab_results:
                   delta_color="off")
         if agg.loc["drex", "cost_per_1000_usd"]:
             h3.metric("Cost", f"{agg.loc['llm', 'cost_per_1000_usd'] / agg.loc['drex', 'cost_per_1000_usd']:.0f}× cheaper",
-                      f"${agg.loc['drex', 'cost_per_1000_usd']:.2f} vs ${agg.loc['llm', 'cost_per_1000_usd']:.2f} per 1k",
+                      f"${agg.loc['drex', 'cost_per_1000_usd']:.4f} vs ${agg.loc['llm', 'cost_per_1000_usd']:.2f} per 1k",
                       delta_color="off")
 
     table = df[["benchmark", "model", "accuracy", "median_latency_ms", "cost_per_1000_usd"]
@@ -565,7 +552,7 @@ with tab_results:
     st.dataframe(table, hide_index=True, use_container_width=True, column_config={
         "accuracy": st.column_config.NumberColumn("Accuracy", format="percent"),
         "median_latency_ms": st.column_config.NumberColumn("Median latency (ms)", format="%.0f"),
-        "cost_per_1000_usd": st.column_config.NumberColumn("$ per 1,000 decisions", format="$%.2f"),
+        "cost_per_1000_usd": st.column_config.NumberColumn("$ per 1,000 decisions", format="$%.4f"),
     })
 
     g1, g2, g3 = st.columns(3)

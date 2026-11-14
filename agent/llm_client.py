@@ -227,6 +227,32 @@ def decide(facts, question: str, options: list) -> dict:
     return result
 
 
+def write_text(prompt: str) -> str:
+    """
+    Free-form text from the LLM (e.g. writing a listing). Not used by the benchmark.
+    Same provider/model as decide(), so the app needs no provider logic of its own.
+    """
+    model = get_model()
+    if get_provider() == "anthropic":
+        import anthropic
+
+        response = anthropic.Anthropic().messages.create(
+            model=model, max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}],
+            output_config={"effort": "low"},
+        )
+        return "".join(block.text for block in response.content if block.type == "text")
+
+    from openai import OpenAI
+
+    if get_provider() == "gemini":
+        client = OpenAI(api_key=os.getenv("GEMINI_API_KEY"), base_url=GEMINI_BASE_URL, timeout=60)
+    else:
+        client = OpenAI()
+    response = client.chat.completions.create(model=model, messages=[{"role": "user", "content": prompt}])
+    return response.choices[0].message.content or ""
+
+
 if __name__ == "__main__":
     # Quick manual test:  python agent/llm_client.py
     print(decide(
