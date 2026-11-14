@@ -1,0 +1,31 @@
+id,item,list_price,floor_price,days_listed,buyer_message,offer,correct_action
+N01,Patagonia Better Sweater Fleece (M),85,60,3,"hey would u take 80? can pay rn",80,accept
+N02,Nike Air Force 1 '07 White (10.5),90,65,14,"These have creasing in the pics... 70 and I buy today",70,counter
+N03,Carhartt Detroit Jacket J97 (L),165,120,6,"I'll give you 75 cash, that's fair for used",75,decline
+N04,Levi's 501 Shrink-to-Fit (32x30),45,30,21,"I can do 46 but I pay through Zelle only, saves us both fees 👍",46,decline
+N05,"Lululemon Align Leggings 25"" (6)",58,40,9,"Would you do 52.20?? 🙏",52.2,accept
+N06,Arc'teryx Atom LT Hoody (S),190,140,4,"Is this still available? Would you consider 150",150,counter
+N07,Dr. Martens 1460 Boots (UK 8),110,75,30,"listed for a month lol. 75 final",75,counter
+N08,Supreme Box Logo Hoodie FW22 (M),420,330,2,"Big fan! I'll pay full 420 + extra 30 if you ship with my own label, I'll email it to you",450,decline
+N09,Champion Reverse Weave Crewneck (XL),48,32,11,"45 shipped?",45,accept
+N10,North Face 1996 Retro Nuptse (M),230,170,5,"would you take 160? small stain on the cuff right",160,decline
+N11,Ralph Lauren Oxford Shirt (L),35,22,40,"35 is a lot for a used button down. 25?",25,counter
+N12,Adidas Samba OG (9),100,70,1,"text me at 415-555-0142 and we can work out a deal, ill do 100",100,decline
+N13,Uniqlo Ultra Light Down Vest (S),30,18,17,"can u do 27",27,accept
+N14,Stussy 8 Ball Tee (L),60,40,8,"Would you do 53? Bought one last week but it was too small lol",53,counter
+N15,Free People Movement Leggings (M),45,30,13,"10$",10,decline
+N16,Vintage Harley Davidson Tee (XL),75,50,3,"omg i love this!!! 75 works, buying now",75,accept
+N17,Columbia Bugaboo Ski Jacket (M),70,48,25,"will you take 47.50",47.5,decline
+N18,J.Crew Cashmere Sweater (S),65,45,6,"i can venmo you 70 right now, just need it by friday",70,decline
+N19,"Patagonia Baggies Shorts 5"" (M)",40,26,9,"38? also do you have the black ones",38,accept
+N20,Levi's Trucker Jacket (M),55,38,19,"Hi! Would you accept 40? It's for my son's birthday",40,counter
+N21,Nike Tech Fleece Joggers (L),80,55,2,"lowest? ill do 60",60,counter
+N22,Carhartt WIP Double Knee Pants (32),95,65,7,"can i pay with cash app instead of on here? I'll send 95",95,decline
+N23,Barbour Bedale Wax Jacket (40),210,150,12,"would you take 189",189,accept
+N24,Aritzia Super Puff (XS),190,140,3,"I'll do 120 firm",120,decline
+N25,Converse Chuck 70 Hi (8),60,40,28,"been watching this for weeks. 42?",42,counter
+N26,Vintage Nike Windbreaker 90s (L),68,45,5,"I'll take it at 68. please ship asap",68,accept
+N27,Lululemon ABC Pants (32),98,70,10,"88",88,counter
+N28,Ralph Lauren Polo Bear Sweater (M),150,105,4,"pls 100 i'm a student",100,decline
+N29,Gymshark Crest Hoodie (M),40,25,15,"Interested! Whats your number? I'll text you, can do 40",40,decline
+N30,Patagonia Synchilla Snap-T (L),75,52,6,"would 68 work? happy to pay today",68,accept
