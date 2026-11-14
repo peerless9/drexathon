@@ -1,0 +1,90 @@
+{
+  "backend": "deepinfra",
+  "n": 76,
+  "designs": {
+    "choice": {
+      "dev": {
+        "n": 38,
+        "exact": 0.2632,
+        "within_one_option": 0.6579,
+        "median_abs_pct_error": 0.3282
+      },
+      "test": {
+        "n": 38,
+        "exact": 0.1842,
+        "within_one_option": 0.6842,
+        "median_abs_pct_error": 0.3328
+      },
+      "all": {
+        "n": 76,
+        "exact": 0.2237,
+        "within_one_option": 0.6711,
+        "median_abs_pct_error": 0.3282
+      }
+    },
+    "score": {
+      "dev": {
+        "n": 38,
+        "exact": 0.2895,
+        "within_one_option": 0.7105,
+        "median_abs_pct_error": 0.2903
+      },
+      "test": {
+        "n": 38,
+        "exact": 0.1842,
+        "within_one_option": 0.7105,
+        "median_abs_pct_error": 0.4037
+      },
+      "all": {
+        "n": 76,
+        "exact": 0.2368,
+        "within_one_option": 0.7105,
+        "median_abs_pct_error": 0.3282
+      },
+      "median_latency_s": 0.3332,
+      "cost_per_1000_usd": 0.0391
+    },
+    "threshold": {
+      "dev": {
+        "n": 38,
+        "exact": 0.2368,
+        "within_one_option": 0.7895,
+        "median_abs_pct_error": 0.2903
+      },
+      "test": {
+        "n": 38,
+        "exact": 0.1842,
+        "within_one_option": 0.7895,
+        "median_abs_pct_error": 0.3727
+      },
+      "all": {
+        "n": 76,
+        "exact": 0.2105,
+        "within_one_option": 0.7895,
+        "median_abs_pct_error": 0.3171
+      },
+      "median_latency_s": 0.3431,
+      "cost_per_1000_usd": 0.0396
+    },
+    "opus": {
+      "dev": {
+        "n": 38,
+        "exact": 0.4737,
+        "within_one_option": 0.8947,
+        "median_abs_pct_error": 0.1999
+      },
+      "test": {
+        "n": 38,
+        "exact": 0.3947,
+        "within_one_option": 0.7895,
+        "median_abs_pct_error": 0.2959
+      },
+      "all": {
+        "n": 76,
+        "exact": 0.4342,
+        "within_one_option": 0.8421,
+        "median_abs_pct_error": 0.2018
+      }
+    }
+  }
+}
